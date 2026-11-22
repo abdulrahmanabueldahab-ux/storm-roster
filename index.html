@@ -474,6 +474,7 @@ details.alt[open] summary { margin-bottom: 8px; }
               <th>Name</th>
               <th class="r">1st team power</th>
               <th>Last event</th>
+              <th class="r" title="Battle score in the last event, for your information. It does not change the rotation.">Last score</th>
               <th class="r" title="Events in a row without a main slot">Waited</th>
               <th class="hist-col hidden">Recent</th>
               <th>Officer</th>
@@ -881,7 +882,9 @@ const I18N = (function () {
     'History': 'السجل', 'Saved rosters': 'التشكيلات المحفوظة', 'Recent changes by R4s': 'آخر تغييرات الـR4',
     'The newest roster before the battle date counts as the last event.': 'أحدث تشكيلة قبل تاريخ المعركة تُحتسب كالحدث السابق.',
     'View': 'عرض', 'Delete': 'حذف', 'Confirm delete': 'تأكيد الحذف', 'last event': 'الحدث السابق', 'this battle': 'هذه المعركة',
-    'Copy this roster': 'نسخ هذه التشكيلة', 'Close': 'إغلاق', 'No changes yet.': 'لا توجد تغييرات بعد.', 'You': 'أنت', 'An R4': 'أحد الـR4', 'just now': 'الآن',
+    'Copy this roster': 'نسخ هذه التشكيلة',
+    'Last score': 'آخر نتيجة', 'Score': 'النتيجة', 'Battle score in the last event, for your information. It does not change the rotation.': 'نتيجة المعركة في الحدث السابق، للعلم فقط. لا تؤثر على التناوب.',
+    'Scores are saved for R4s to see. They do not change the rotation.': 'تُحفظ النتائج ليطّلع عليها الـR4. لا تؤثر على التناوب.', 'Close': 'إغلاق', 'No changes yet.': 'لا توجد تغييرات بعد.', 'You': 'أنت', 'An R4': 'أحد الـR4', 'just now': 'الآن',
     // step 6
     'Alliance settings': 'إعدادات التحالف', 'R4 link': 'رابط الـR4', 'Copy': 'نسخ',
     'Anyone with this link can see and change the roster, with no login. Send it only to your R4s in a private chat. If it ever leaks, create a new space and restore a backup there.': 'أي شخص لديه هذا الرابط يمكنه رؤية التشكيلة وتعديلها بدون تسجيل دخول. أرسله فقط للـR4 في محادثة خاصة. إذا تسرّب، أنشئ مساحة جديدة واستعد نسخة احتياطية فيها.',
@@ -986,7 +989,7 @@ const I18N = (function () {
     [/^Deleted the (Desert Storm|Canyon Storm) roster for (.+)$/, m => 'حذف تشكيلة ' + ev(m[1]) + ' لـ ' + date(m[2])],
     [/^Shared the member list \((\d+) members\)$/, m => 'شارك قائمة الأعضاء (' + pl(m[1], 'member') + ')'],
     // aria labels with names
-    [/^(Last event for|Events waited by|Officer setting for|Member for|Power read for|Role for) (.+)$/, m => ({ 'Last event for': 'الحدث السابق لـ ', 'Events waited by': 'الأحداث التي انتظرها ', 'Officer setting for': 'إعداد الضابط لـ ', 'Member for': 'العضو لـ ', 'Power read for': 'القوة المقروءة لـ ', 'Role for': 'الدور لـ ' }[m[1]]) + m[2]],
+    [/^(Last event for|Events waited by|Officer setting for|Member for|Power read for|Score read for|Role for) (.+)$/, m => ({ 'Last event for': 'الحدث السابق لـ ', 'Events waited by': 'الأحداث التي انتظرها ', 'Officer setting for': 'إعداد الضابط لـ ', 'Member for': 'العضو لـ ', 'Power read for': 'القوة المقروءة لـ ', 'Score read for': 'النتيجة المقروءة لـ ', 'Role for': 'الدور لـ ' }[m[1]]) + m[2]],
     [/^· Top$/, () => '· الأعلى'],
     [/^Remove screenshot (\d+)$/, m => 'إزالة اللقطة ' + m[1]],
     [/^Screenshot (\d+)$/, m => 'لقطة ' + m[1]]
@@ -1168,7 +1171,7 @@ function sim(a, b) { const x = alnum(a), y = alnum(b); if (!x || !y) return 0; i
 function workFromSaved(evId, src) {
   const saved = src.saved[evId] || [];
   const date = isoDate(nextFriday(new Date()));
-  const base = { date, last: {}, gap: {}, ov: {}, settings: Object.assign({}, DEFAULT_SETTINGS), exists: false };
+  const base = { date, last: {}, gap: {}, ov: {}, score: {}, settings: Object.assign({}, DEFAULT_SETTINGS), exists: false };
   const cur = saved.find(h => h.date === date);
   const prev = saved.find(h => h.date < date);
   if (cur) {
@@ -1182,7 +1185,7 @@ function workFromSaved(evId, src) {
 }
 function effectiveWork(evId, src) { src = src || S(); return src.work[evId] || workFromSaved(evId, src); }
 function mergeWork(base, patch) {
-  const n = { date: patch.date || base.date, last: Object.assign({}, base.last, patch.last), gap: Object.assign({}, base.gap, patch.gap), ov: Object.assign({}, base.ov, patch.ov), settings: Object.assign({}, DEFAULT_SETTINGS, base.settings, patch.settings) };
+  const n = { date: patch.date || base.date, last: Object.assign({}, base.last, patch.last), gap: Object.assign({}, base.gap, patch.gap), ov: Object.assign({}, base.ov, patch.ov), score: Object.assign({}, base.score, patch.score), settings: Object.assign({}, DEFAULT_SETTINGS, base.settings, patch.settings) };
   return n;
 }
 function membersFor(evId, src) {
@@ -1191,7 +1194,8 @@ function membersFor(evId, src) {
     key: m.key, hk: m.hk, name: m.name, power: m.power,
     last: w.last[m.hk] || '',
     gap: (m.hk in w.gap && w.gap[m.hk] !== null && w.gap[m.hk] !== '') ? +w.gap[m.hk] : null,
-    ov: w.ov[m.hk] || ''
+    ov: w.ov[m.hk] || '',
+    score: (w.score && w.score[m.hk] != null && w.score[m.hk] !== '') ? +w.score[m.hk] : null
   }));
 }
 const curWork = () => effectiveWork(state.event);
@@ -1238,7 +1242,7 @@ async function setMembers(list, logText) {
 }
 async function patchWork(evId, patch, logText, replace) {
   const src = S();
-  const base = replace ? { date: patch.date, last: {}, gap: {}, ov: {}, settings: patch.settings || DEFAULT_SETTINGS } : effectiveWork(evId, src);
+  const base = replace ? { date: patch.date, last: {}, gap: {}, ov: {}, score: {}, settings: patch.settings || DEFAULT_SETTINGS } : effectiveWork(evId, src);
   const next = mergeWork(base, replace ? Object.assign({}, patch, { last: patch.last, gap: patch.gap, ov: patch.ov }) : patch);
   next.exists = true; next.updatedAt = nowIso(); next.by = state.me || '';
   const existed = !!src.work[evId];
@@ -1249,17 +1253,17 @@ async function patchWork(evId, patch, logText, replace) {
   try {
     if (existed && !replace && state.remoteSeen[evId + 'w'] !== 'missing') {
       const up = { updatedAt: next.updatedAt, by: next.by };
-      ['last', 'gap', 'ov', 'settings'].forEach(k => { if (patch[k] && Object.keys(patch[k]).length) up[k] = patch[k]; });
+      ['last', 'gap', 'ov', 'score', 'settings'].forEach(k => { if (patch[k] && Object.keys(patch[k]).length) up[k] = patch[k]; });
       if (patch.date) up.date = patch.date;
       await q(path, () => db.doc(path).update(up));
     } else {
-      await q(path, () => db.doc(path).set({ date: next.date, last: next.last, gap: next.gap, ov: next.ov, settings: next.settings, updatedAt: next.updatedAt, by: next.by }));
+      await q(path, () => db.doc(path).set({ date: next.date, last: next.last, gap: next.gap, ov: next.ov, score: next.score || {}, settings: next.settings, updatedAt: next.updatedAt, by: next.by }));
     }
     if (logText) addLog(logText, evId);
   } catch (e) {
     if (e && e.code === 'invalid_argument' && existed && !replace) {
       // the shared doc may not exist yet: write it whole once
-      try { await q(path, () => db.doc(path).set({ date: next.date, last: next.last, gap: next.gap, ov: next.ov, settings: next.settings, updatedAt: next.updatedAt, by: next.by })); if (logText) addLog(logText, evId); return; } catch (e2) { return writeFailed(e2); }
+      try { await q(path, () => db.doc(path).set({ date: next.date, last: next.last, gap: next.gap, ov: next.ov, score: next.score || {}, settings: next.settings, updatedAt: next.updatedAt, by: next.by })); if (logText) addLog(logText, evId); return; } catch (e2) { return writeFailed(e2); }
     }
     writeFailed(e);
   }
@@ -1299,7 +1303,7 @@ async function rollForward(evId) {
   const { w, ms, r, rows } = rosterRows(evId);
   await setHistory(evId, withEntry(evId, w.date, rows, w.settings));
   const nd = nextDate(w.date);
-  const nw = { date: nd, last: {}, gap: {}, ov: {}, settings: Object.assign({}, w.settings) };
+  const nw = { date: nd, last: {}, gap: {}, ov: {}, score: {}, settings: Object.assign({}, w.settings) };
   ms.forEach(m => { const a = r.assign[m.key]; nw.last[m.hk] = a.slot === 'X' ? (m.last || '') : a.slot; nw.gap[m.hk] = a.gap; if (m.ov === 'A' || m.ov === 'B') nw.ov[m.hk] = m.ov; });
   await patchWork(evId, nw, 'Started the ' + EVENTS[evId].name + ' roster for ' + fmtShortEn(nd) + ' (the ' + fmtShortEn(w.date) + ' lineup is now the last event)', true);
 }
@@ -1311,7 +1315,7 @@ function parseMembersDoc(d) {
 }
 function parseWorkDoc(d) {
   const obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
-  return { date: typeof d.date === 'string' ? d.date : isoDate(nextFriday(new Date())), last: Object.assign({}, obj(d.last)), gap: Object.assign({}, obj(d.gap)), ov: Object.assign({}, obj(d.ov)), settings: Object.assign({}, DEFAULT_SETTINGS, obj(d.settings)), updatedAt: d.updatedAt || '', by: d.by || '', exists: true };
+  return { date: typeof d.date === 'string' ? d.date : isoDate(nextFriday(new Date())), last: Object.assign({}, obj(d.last)), gap: Object.assign({}, obj(d.gap)), ov: Object.assign({}, obj(d.ov)), score: Object.assign({}, obj(d.score)), settings: Object.assign({}, DEFAULT_SETTINGS, obj(d.settings)), updatedAt: d.updatedAt || '', by: d.by || '', exists: true };
 }
 function parseHistoryDoc(d) {
   const list = Array.isArray(d && d.history) ? d.history : [];
@@ -1513,12 +1517,13 @@ function promptFor(kind, n) {
   return 'You are reading ' + n + ' screenshot' + (n > 1 ? 's' : '') + ' from the mobile strategy game "Last War: Survival".\n' +
     'An alliance officer says they show ' + KINDS[kind].desc + '.\n\n' +
     'Read every player row you can see in every screenshot. For each player give:\n' +
-    '- "name": the player name exactly as shown. Keep every letter, digit and symbol, in any language or script. Leave out an alliance tag in square brackets such as [0NE1].\n' +
+    '- "name": the player name exactly as shown. Keep every letter, digit and symbol, in any language or script. Names often mix scripts and use spaced letters or decorative symbols (for example "M O Z Z A Kᴼᴺᴱ" or "Azzz عـز"): copy them exactly. Leave out the alliance tag in square brackets such as [ONE1].\n' +
     '- "power": the power figure on that player\'s row, written as shown (for example "52.4M" or "52,431,220"). If the row shows more than one figure, use the one labelled power, 1st team or squad 1. Use "" when there is none.\n' +
+    '- "score": the battle score or points on that player\'s row, written as shown (for example "14600507"). Use "" when there is none.\n' +
     '- "role": "main" if the player is listed as a starter, main or participant; "sub" if listed under substitutes or reserves; "" if the screen does not say.\n' +
     'Ignore headers, buttons, menus, the phone status bar, and rows cut off so much that the name cannot be read. List a player once even if they appear in two screenshots.\n\n' +
-    (kind === 'members' ? '' : 'Battle scores, points or kills are not power: leave "power" empty for them.\n') +
-    'Reply with only JSON in this shape' + (I18N.lang === 'ar' ? ' (write the "screen" sentence in Arabic; keep player names exactly as shown)' : '') + ':\n{"screen": "one short sentence on what the screenshots show", "rows": [{"name": "IronFalcon", "power": "52.4M", "role": "main"}]}';
+    (kind === 'members' ? '' : 'Battle scores, points or kills are not power: put them in "score" and leave "power" empty.\n') +
+    'Reply with only JSON in this shape' + (I18N.lang === 'ar' ? ' (write the "screen" sentence in Arabic; keep player names exactly as shown)' : '') + ':\n{"screen": "one short sentence on what the screenshots show", "rows": [{"name": "IronFalcon", "power": "52.4M", "score": "", "role": "main"}]}';
 }
 function sampleErrorText(e) {
   const c = e && e.code;
@@ -1545,7 +1550,7 @@ async function readShots() {
     try {
       const out = await sampleFn.json(promptFor(sh.kind, batch.length), { images: batch, signal: sh.ctl.signal, modelTier: 'default' });
       const rr = out && Array.isArray(out.rows) ? out.rows : [];
-      rr.forEach(r => { if (r && typeof r.name === 'string' && r.name.trim()) rows.push({ name: r.name.trim(), power: String(r.power == null ? '' : r.power).trim(), role: r.role === 'sub' ? 'sub' : r.role === 'main' ? 'main' : '' }); });
+      rr.forEach(r => { if (r && typeof r.name === 'string' && r.name.trim()) rows.push({ name: r.name.trim(), power: String(r.power == null ? '' : r.power).trim(), score: String(r.score == null ? '' : r.score).trim(), role: r.role === 'sub' ? 'sub' : r.role === 'main' ? 'main' : '' }); });
       if (out && typeof out.screen === 'string' && !screen) screen = out.screen;
     } catch (e) {
       if (e && e.code === 'cancelled') break;
@@ -1582,13 +1587,14 @@ function buildReview(raw, screen, sourceLabel) {
   const sh = state.shots; const kind = sh.kind; const src = S();
   const realMembers = src.example ? [] : src.members;
   const seen = new Map();
-  raw.forEach(r => { const a = alnum(r.name); if (!a) return; const ex = seen.get(a); if (!ex) seen.set(a, Object.assign({}, r)); else { if (!ex.power && r.power) ex.power = r.power; if (!ex.role && r.role) ex.role = r.role; } });
+  raw.forEach(r => { const a = alnum(r.name); if (!a) return; const ex = seen.get(a); if (!ex) seen.set(a, Object.assign({}, r)); else { if (!ex.power && r.power) ex.power = r.power; if (!ex.score && r.score) ex.score = r.score; if (!ex.role && r.role) ex.role = r.role; } });
   const rows = Array.from(seen.values()).map(r => {
     const m = matchMember(r.name, realMembers);
     const isTeam = kind === 'A' || kind === 'B';
     let target = m.target;
-    if (!target) target = (kind === 'members' || !realMembers.length) ? '+new' : '-ignore';
-    return { name: r.name, power: r.power, role: isTeam ? (r.role === 'sub' ? 'sub' : 'main') : r.role, target, how: m.how, cands: m.cands };
+    if (!target) target = '+new'; // unmatched players on any screen are almost always real members; the review flags them as New
+    const score = kind === 'members' ? '' : (r.score || r.power || '');
+    return { name: r.name, power: kind === 'members' ? r.power : '', score, role: isTeam ? (r.role === 'sub' ? 'sub' : 'main') : r.role, target, how: m.how, cands: m.cands };
   });
   rows.sort((x, y) => ({ close: 0, new: 1, exact: 2 }[x.how] - { close: 0, new: 1, exact: 2 }[y.how]) || x.name.localeCompare(y.name));
   const bo = battleOptions(state.event);
@@ -1655,17 +1661,19 @@ async function applyReview() {
   if (R.kind !== 'members') {
     if (R.battle === 'current') await rollForward(evId);
     const w = effectiveWork(evId);
-    const patch = { last: {}, gap: {} };
+    const patch = { last: {}, gap: {}, score: {} };
+    const scoreOf = r => { const v = parsePowerRaw(String(r.score || '').trim()); return isFinite(v.n) && v.n > 0 ? Math.round(v.n) : null; };
     const gapNow = h => (w.gap[h] !== undefined && w.gap[h] !== null && w.gap[h] !== '' ? +w.gap[h] : null);
     let txt = '';
     if (R.kind === 'A' || R.kind === 'B') {
       const T = R.kind;
-      if (R.replaceTeam) members.forEach(m => { const l = w.last[m.hk] || ''; if (l[0] === T && !found.has(m.key)) { patch.last[m.hk] = 'OUT'; const g = gapNow(m.hk); patch.gap[m.hk] = g > 0 ? g : 1; } });
+      if (R.replaceTeam) members.forEach(m => { const l = w.last[m.hk] || ''; if (l[0] === T && !found.has(m.key)) { patch.last[m.hk] = 'OUT'; const g = gapNow(m.hk); patch.gap[m.hk] = g > 0 ? g : 1; patch.score[m.hk] = null; } });
       let nM = 0, nS = 0;
-      found.forEach((r, key) => { const h = hk(key); const sub = r.role === 'sub'; patch.last[h] = T + (sub ? 'S' : 'M'); const g = gapNow(h); patch.gap[h] = sub ? (g > 0 ? g : 1) : 0; if (sub) nS++; else nM++; });
+      found.forEach((r, key) => { const h = hk(key); const sub = r.role === 'sub'; patch.last[h] = T + (sub ? 'S' : 'M'); const g = gapNow(h); patch.gap[h] = sub ? (g > 0 ? g : 1) : 0; const sc = scoreOf(r); if (sc != null) patch.score[h] = sc; if (sub) nS++; else nM++; });
       txt = 'Set the Team ' + T + ' lineup of the last event (' + nM + ' main, ' + nS + ' subs) from ' + what;
     } else {
       let ns = 0, credit = 0;
+      found.forEach((r, key) => { const sc = scoreOf(r); if (sc != null) patch.score[hk(key)] = sc; });
       members.forEach(m => {
         const l = w.last[m.hk] || '';
         if ((l === 'AM' || l === 'BM') && !found.has(m.key)) { patch.last[m.hk] = 'NS'; ns++; }
@@ -1805,6 +1813,7 @@ function renderReview() {
   const fx = reviewEffects(R);
   const isTeam = R.kind === 'A' || R.kind === 'B';
   const showPower = R.kind === 'members';
+  const showScore = R.kind !== 'members';
   const rowsHtml = R.rows.map((r, i) => {
     const opts = ['<option value="-ignore"' + (r.target === '-ignore' ? ' selected' : '') + '>Ignore this row</option>', '<option value="+new"' + (r.target === '+new' ? ' selected' : '') + '>Add as new member</option>'];
     const candSet = new Set(r.cands);
@@ -1817,8 +1826,9 @@ function renderReview() {
     else badge = '<span class="badge close">Check</span>';
     const cur = byKey.get(r.target);
     const powerCell = showPower ? '<td><input type="text" value="' + esc(r.power) + '" data-ri="' + i + '" data-rf="power" aria-label="Power read for ' + esc(r.name) + '">' + (cur && cur.power ? ' <span class="muted" style="font-size:12px">was ' + fmtPower(cur.power) + '</span>' : '') + '</td>' : '';
+    const scoreCell = showScore ? '<td><input type="text" value="' + esc(r.score || '') + '" data-ri="' + i + '" data-rf="score" aria-label="Score read for ' + esc(r.name) + '"></td>' : '';
     const roleCell = isTeam ? '<td><select data-ri="' + i + '" data-rf="role" aria-label="Role for ' + esc(r.name) + '"><option value="main"' + (r.role !== 'sub' ? ' selected' : '') + '>Main</option><option value="sub"' + (r.role === 'sub' ? ' selected' : '') + '>Sub</option></select></td>' : '';
-    return '<tr><td>' + badge + '</td><td translate="no">' + esc(r.name) + '</td><td><select data-ri="' + i + '" data-rf="target" aria-label="Member for ' + esc(r.name) + '">' + opts.join('') + '</select></td>' + powerCell + roleCell + '</tr>';
+    return '<tr><td>' + badge + '</td><td translate="no">' + esc(r.name) + '</td><td><select data-ri="' + i + '" data-rf="target" aria-label="Member for ' + esc(r.name) + '">' + opts.join('') + '</select></td>' + powerCell + scoreCell + roleCell + '</tr>';
   }).join('');
   let optsHtml = '';
   if (R.kind === 'members') {
@@ -1827,6 +1837,7 @@ function renderReview() {
     const bo = battleOptions(R.ev);
     optsHtml += '<label class="field" for="rv-battle"><span class="label">Which battle is this from?</span><select id="rv-battle">' + bo.map(o => '<option value="' + o.v + '"' + (o.v === R.battle ? ' selected' : '') + '>' + esc(o.label) + '</option>').join('') + '</select></label>';
     if (isTeam) optsHtml += '<label class="check"><input type="checkbox" id="rv-replace"' + (R.replaceTeam ? ' checked' : '') + '><span>Replace the whole Team ' + R.kind + ' list: anyone in Team ' + R.kind + ' who is not in these screenshots counts as sat out. Untick if you are adding more screenshots to a list you already uploaded.</span></label>';
+    optsHtml += '<p class="muted" style="margin:0;font-size:13px">Scores are saved for R4s to see. They do not change the rotation.</p>';
     if (R.kind === 'results') {
       optsHtml += '<p style="margin:0;font-size:14px"><b>Will be marked No-show (' + fx.noShows.length + '):</b> ' + (fx.noShows.length ? '<span translate="no">' + esc(fx.noShows.map(m => m.name).join(', ')) + '</span>' : 'nobody') + '</p>';
       if (fx.subsFought.length) optsHtml += '<p style="margin:0;font-size:14px"><b>Subs who fought, counted as main (' + fx.subsFought.length + '):</b> <span translate="no">' + esc(fx.subsFought.map(m => m.name).join(', ')) + '</span></p>';
@@ -1837,7 +1848,7 @@ function renderReview() {
     (R.screen ? '<span class="muted" style="font-size:13.5px">Gemini saw: ' + esc(R.screen) + '</span>' : '') +
     '<div class="counts"><span><b>' + R.rows.length + '</b> players read</span><span><b>' + fx.matched + '</b> matched</span>' + (fx.close ? '<span style="color:var(--accent)"><b>' + fx.close + '</b> close matches to check</span>' : '') + '<span><b>' + fx.added + '</b> new</span><span><b>' + fx.ignored + '</b> ignored</span></div>' +
     '<span class="muted" style="font-size:13px">Names can be misread. Check the rows marked Check or New, and pick the right member if needed.</span></div>' +
-    '<div class="table-wrap" style="margin:0;border:0;border-radius:0"><table><thead><tr><th></th><th>Read from screenshot</th><th>Member</th>' + (showPower ? '<th>Power</th>' : '') + (isTeam ? '<th>Role</th>' : '') + '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div>' +
+    '<div class="table-wrap" style="margin:0;border:0;border-radius:0"><table><thead><tr><th></th><th>Read from screenshot</th><th>Member</th>' + (showPower ? '<th>Power</th>' : '') + (showScore ? '<th>Score</th>' : '') + (isTeam ? '<th>Role</th>' : '') + '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div>' +
     '<div class="review-opts">' + optsHtml + '</div>' +
     '<div class="review-f"><span class="muted" style="font-size:13px">Applying updates the shared data for every R4.</span><span class="actions"><button class="btn ghost" type="button" id="rv-discard">Discard</button><button class="btn accent" type="button" id="rv-apply">Apply</button></span></div></div>';
   $('rv-apply').onclick = async e => { e.target.disabled = true; await applyReview(); };
@@ -1919,11 +1930,12 @@ function renderLedger(r) {
     const pips = showHist ? '<td><span class="pips">' + historyFor(m.key).map(p => '<i class="' + p.c + '" title="' + esc(p.t) + '"></i>').join('') + '</span></td>' : '';
     return '<tr><td class="r num muted">' + rank.get(m.key) + '</td><td translate="no">' + esc(m.name) + '</td><td class="r num">' + fmtPower(m.power) + '</td>' +
       '<td>' + sel(STATUS_OPTS, m.last, 'data-h="' + m.hk + '" data-n="' + esc(m.name) + '" data-act="last" aria-label="Last event for ' + esc(m.name) + '"') + '</td>' +
+      '<td class="r num muted">' + (m.score != null ? m.score.toLocaleString('en-US') : '—') + '</td>' +
       '<td class="r"><input type="number" min="0" max="99" value="' + gapOf(m) + '" data-h="' + m.hk + '" data-n="' + esc(m.name) + '" data-act="gap" aria-label="Events waited by ' + esc(m.name) + '"' + dis + '></td>' + pips +
       '<td>' + sel(OV_OPTS, m.ov, 'data-h="' + m.hk + '" data-n="' + esc(m.name) + '" data-act="ov" aria-label="Officer setting for ' + esc(m.name) + '"') + '</td>' +
       '<td><span class="pill ' + a.slot + '">' + esc(SLOT_LABEL[a.slot]) + '</span></td><td class="why">' + esc(a.reason) + '</td></tr>';
   });
-  $('ledger').innerHTML = rows.join('') || '<tr><td colspan="9" class="muted">No members match.</td></tr>';
+  $('ledger').innerHTML = rows.join('') || '<tr><td colspan="10" class="muted">No members match.</td></tr>';
 }
 
 function renderHistory() {
@@ -2063,12 +2075,13 @@ $('btn-paste').onclick = () => {
   state.shots.error = ''; buildReview(rows, '', 'typed names'); renderShots();
   $('review').scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
-$('review').addEventListener('input', e => { const t = e.target; const R = state.shots.review; if (!R || t.dataset.rf !== 'power') return; const r = R.rows[+t.dataset.ri]; if (r) r.power = t.value; });
+$('review').addEventListener('input', e => { const t = e.target; const R = state.shots.review; if (!R || (t.dataset.rf !== 'power' && t.dataset.rf !== 'score')) return; const r = R.rows[+t.dataset.ri]; if (r) r[t.dataset.rf] = t.value; });
 $('review').addEventListener('change', e => {
   const t = e.target; const R = state.shots.review; if (!R || t.dataset.ri === undefined) return;
   const r = R.rows[+t.dataset.ri]; if (!r) return;
   if (t.dataset.rf === 'target') { r.target = t.value; if (t.value !== '-ignore' && t.value !== '+new') r.how = (r.cands[0] === t.value && r.how === 'close') ? 'close' : 'exact'; renderReview(); }
   else if (t.dataset.rf === 'power') r.power = t.value;
+  else if (t.dataset.rf === 'score') r.score = t.value;
   else if (t.dataset.rf === 'role') r.role = t.value;
 });
 $('btn-example').onclick = () => {
@@ -2162,7 +2175,7 @@ $('btn-key-test').onclick = async () => {
   catch (e) { ks.textContent = sampleErrorText(e); }
 };
 function backupJson() {
-  const R = state.remote; const w = k => (R.work[k] ? { date: R.work[k].date, last: R.work[k].last, gap: R.work[k].gap, ov: R.work[k].ov, settings: R.work[k].settings } : null);
+  const R = state.remote; const w = k => (R.work[k] ? { date: R.work[k].date, last: R.work[k].last, gap: R.work[k].gap, ov: R.work[k].ov, score: R.work[k].score || {}, settings: R.work[k].settings } : null);
   return JSON.stringify({ app: 'storm-rotation', version: 1, exportedAt: nowIso(), members: R.members.map(m => ({ n: m.name, p: Math.round(m.power) })), work: { ds: w('ds'), cs: w('cs') }, history: { ds: encodeHistory(R.saved.ds), cs: encodeHistory(R.saved.cs) } });
 }
 $('btn-backup').onclick = () => {
