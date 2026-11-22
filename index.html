@@ -269,6 +269,7 @@ pre.mail { white-space: pre-wrap; background: var(--surface-2); border-radius: v
 [dir="rtl"] .panel-h h2 .step { margin-right: 0; margin-left: 8px; }
 #r4-link, #key-input, #ta-config, .review td input[type="text"], td input[type="number"] { direction: ltr; }
 [dir="rtl"] #r4-link, [dir="rtl"] #key-input { text-align: left; }
+label.su { font-size: 12.5px; color: var(--muted); white-space: nowrap; margin-inline-start: 6px; }
 details.alt summary { cursor: pointer; font-size: 13.5px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; width: max-content; }
 details.alt[open] summary { margin-bottom: 8px; }
 </style>
@@ -341,6 +342,7 @@ details.alt[open] summary { margin-bottom: 8px; }
       <div class="lines">
         <div class="status-line" id="st-members"><span class="pip"></span><span></span></div>
         <div class="status-line" id="st-last"><span class="pip"></span><span></span></div>
+        <div class="status-line" id="st-su"><span class="pip"></span><span class="txt"></span><button class="btn ghost hidden" type="button" id="btn-su-clear" style="min-height:0;padding:0 4px">Clear sign-ups</button></div>
       </div>
       <div id="shots-ui" class="bench">
         <span class="label" id="kind-label">What do the screenshots show?</span>
@@ -632,7 +634,7 @@ function waited(n) { return 'Waited ' + n + ' event' + (n === 1 ? '' : 's'); }
 function reasonFor(m, slot, opts) {
   if (m._core) return 'Core: top power, always in Team A';
   if (m._locked) return 'Locked by an officer';
-  if (slot === 'X') return 'Marked unavailable';
+  if (slot === 'X') return m.ov !== 'X' && m.signedUp === false ? 'Did not sign up for this battle' : 'Marked unavailable';
   const g = gapOf(m);
   const main = slot === 'AM' || slot === 'BM';
   const sub = slot === 'AS' || slot === 'BS';
@@ -646,7 +648,7 @@ function reasonFor(m, slot, opts) {
 function tagFor(m, slot, opts) {
   if (m._core) return 'Core';
   if (m._locked) return 'Locked';
-  if (slot === 'X') return 'Away';
+  if (slot === 'X') return m.ov !== 'X' && m.signedUp === false ? 'No sign-up' : 'Away';
   if (penalised(m, opts)) return 'No-show';
   const g = gapOf(m);
   const main = slot === 'AM' || slot === 'BM';
@@ -685,7 +687,8 @@ function buildRoster(members, opts) {
   };
 
   const avail = [];
-  ms.forEach(m => (m.ov === 'X' ? put(m, 'X') : avail.push(m)));
+  // Away, or did not sign up for this battle: not picked, keeps their place in line
+  ms.forEach(m => (m.ov === 'X' || m.signedUp === false ? put(m, 'X') : avail.push(m)));
 
   // 1. Officer locks
   const lockedA = avail.filter(m => m.ov === 'A').sort(byPower);
@@ -883,6 +886,11 @@ const I18N = (function () {
     'The newest roster before the battle date counts as the last event.': 'أحدث تشكيلة قبل تاريخ المعركة تُحتسب كالحدث السابق.',
     'View': 'عرض', 'Delete': 'حذف', 'Confirm delete': 'تأكيد الحذف', 'last event': 'الحدث السابق', 'this battle': 'هذه المعركة',
     'Copy this roster': 'نسخ هذه التشكيلة',
+    'Sign-ups': 'التسجيلات', 'Who signed up for the next battle': 'من سجّل للمعركة القادمة',
+    'Screenshots of the members who signed up (requested to fight) for the next battle. Only they get picked. Everyone else sits this battle out and keeps their place in line.': 'لقطات للأعضاء الذين سجّلوا (طلبوا القتال) للمعركة القادمة. يتم الاختيار منهم فقط، والباقون لا يشاركون في هذه المعركة ويحتفظون بمكانهم في الدور.',
+    'This screen shows 1st team power: update power from it': 'هذه الشاشة تعرض قوة الفريق الأول: حدّث القوة منها',
+    'Did not sign up for this battle': 'لم يسجّل لهذه المعركة', 'No sign-up': 'غير مسجّل', 'Signed up': 'مسجّل', 'Clear sign-ups': 'مسح التسجيلات',
+    'Sign-ups: not uploaded, so every member counts as available.': 'التسجيلات: لم تُرفع بعد، لذا يُحتسب كل الأعضاء متاحين.',
     'Last score': 'آخر نتيجة', 'Score': 'النتيجة', 'Battle score in the last event, for your information. It does not change the rotation.': 'نتيجة المعركة في الحدث السابق، للعلم فقط. لا تؤثر على التناوب.',
     'Scores are saved for R4s to see. They do not change the rotation.': 'تُحفظ النتائج ليطّلع عليها الـR4. لا تؤثر على التناوب.', 'Close': 'إغلاق', 'No changes yet.': 'لا توجد تغييرات بعد.', 'You': 'أنت', 'An R4': 'أحد الـR4', 'just now': 'الآن',
     // step 6
@@ -991,6 +999,12 @@ const I18N = (function () {
     // aria labels with names
     [/^(Last event for|Events waited by|Officer setting for|Member for|Power read for|Score read for|Role for) (.+)$/, m => ({ 'Last event for': 'الحدث السابق لـ ', 'Events waited by': 'الأحداث التي انتظرها ', 'Officer setting for': 'إعداد الضابط لـ ', 'Member for': 'العضو لـ ', 'Power read for': 'القوة المقروءة لـ ', 'Score read for': 'النتيجة المقروءة لـ ', 'Role for': 'الدور لـ ' }[m[1]]) + m[2]],
     [/^· Top$/, () => '· الأعلى'],
+    [/^Replace the sign-up list for the (.+) battle: the (\d+) members not in these screenshots sit this battle out\. Untick if you are adding more screenshots to a list you already uploaded\.$/, m => 'استبدال قائمة التسجيل لمعركة ' + date(m[1]) + ': ' + pl(m[2], 'member') + ' غير موجودين في هذه اللقطات لن يشاركوا في هذه المعركة. ألغِ التحديد إذا كنت تضيف لقطات لقائمة رفعتها سابقًا.'],
+    [/^Sign-ups for (.+): (\d+) signed up, (\d+) not signed up$/, m => 'التسجيلات لـ ' + date(m[1]) + ': ' + m[2] + ' مسجّل، ' + m[3] + ' غير مسجّل'],
+    [/^Set the sign-ups for the (.+) battle: (\d+) signed up, (\d+) not signed up \(from (.+)\)$/, m => 'حدّد التسجيلات لمعركة ' + date(m[1]) + ': ' + m[2] + ' مسجّل، ' + m[3] + ' غير مسجّل (من ' + src(m[4]) + ')'],
+    [/^Cleared the sign-up list for the (.+) battle$/, m => 'مسح قائمة التسجيل لمعركة ' + date(m[1])],
+    [/^Marked (.+) as signed up$/, m => 'حدّد ' + m[1] + ' كمسجّل'],
+    [/^Marked (.+) as not signed up$/, m => 'حدّد ' + m[1] + ' كغير مسجّل'],
     [/^Remove screenshot (\d+)$/, m => 'إزالة اللقطة ' + m[1]],
     [/^Screenshot (\d+)$/, m => 'لقطة ' + m[1]]
   ];
@@ -1087,6 +1101,7 @@ const EVENTS = {
 };
 const KINDS = {
   members: { title: 'Member list', sub: 'Names + 1st team power', help: 'Screenshots of the screen that lists members with their 1st team power. Scroll and take as many as you need; overlaps are fine.', desc: 'a list of alliance members, each with a power figure (ideally 1st team / squad 1 power)' },
+  signups: { title: 'Sign-ups', sub: 'Who signed up for the next battle', help: 'Screenshots of the members who signed up (requested to fight) for the next battle. Only they get picked. Everyone else sits this battle out and keeps their place in line.', desc: 'the list of alliance members who signed up or requested to take part in the next alliance battle, possibly with each member\'s power' },
   A: { title: 'Team A lineup', sub: 'Who was in Team A', help: "Screenshots of Team A's registered players, main and subs. Use this when the in-game lineup differed from the tool, or to set up the first time.", desc: 'the Team A (Task Force A) lineup for an alliance battle, with starters (main) and substitutes' },
   B: { title: 'Team B lineup', sub: 'Who was in Team B', help: "Screenshots of Team B's registered players, main and subs.", desc: 'the Team B (Task Force B) lineup for an alliance battle, with starters (main) and substitutes' },
   results: { title: 'Battle results', sub: 'Marks no-shows', help: 'Screenshots of the results or scoreboard after the battle. Registered mains who are missing get marked No-show, and subs who fought get credit as main.', desc: 'the results or scoreboard after an alliance battle, listing the players who took part' }
@@ -1171,7 +1186,7 @@ function sim(a, b) { const x = alnum(a), y = alnum(b); if (!x || !y) return 0; i
 function workFromSaved(evId, src) {
   const saved = src.saved[evId] || [];
   const date = isoDate(nextFriday(new Date()));
-  const base = { date, last: {}, gap: {}, ov: {}, score: {}, settings: Object.assign({}, DEFAULT_SETTINGS), exists: false };
+  const base = { date, last: {}, gap: {}, ov: {}, score: {}, su: {}, suOn: false, settings: Object.assign({}, DEFAULT_SETTINGS), exists: false };
   const cur = saved.find(h => h.date === date);
   const prev = saved.find(h => h.date < date);
   if (cur) {
@@ -1185,7 +1200,7 @@ function workFromSaved(evId, src) {
 }
 function effectiveWork(evId, src) { src = src || S(); return src.work[evId] || workFromSaved(evId, src); }
 function mergeWork(base, patch) {
-  const n = { date: patch.date || base.date, last: Object.assign({}, base.last, patch.last), gap: Object.assign({}, base.gap, patch.gap), ov: Object.assign({}, base.ov, patch.ov), score: Object.assign({}, base.score, patch.score), settings: Object.assign({}, DEFAULT_SETTINGS, base.settings, patch.settings) };
+  const n = { date: patch.date || base.date, last: Object.assign({}, base.last, patch.last), gap: Object.assign({}, base.gap, patch.gap), ov: Object.assign({}, base.ov, patch.ov), score: Object.assign({}, base.score, patch.score), su: Object.assign({}, base.su, patch.su), suOn: patch.suOn !== undefined ? !!patch.suOn : !!base.suOn, settings: Object.assign({}, DEFAULT_SETTINGS, base.settings, patch.settings) };
   return n;
 }
 function membersFor(evId, src) {
@@ -1195,7 +1210,8 @@ function membersFor(evId, src) {
     last: w.last[m.hk] || '',
     gap: (m.hk in w.gap && w.gap[m.hk] !== null && w.gap[m.hk] !== '') ? +w.gap[m.hk] : null,
     ov: w.ov[m.hk] || '',
-    score: (w.score && w.score[m.hk] != null && w.score[m.hk] !== '') ? +w.score[m.hk] : null
+    score: (w.score && w.score[m.hk] != null && w.score[m.hk] !== '') ? +w.score[m.hk] : null,
+    signedUp: w.suOn ? !!(w.su && w.su[m.hk]) : null
   }));
 }
 const curWork = () => effectiveWork(state.event);
@@ -1242,7 +1258,7 @@ async function setMembers(list, logText) {
 }
 async function patchWork(evId, patch, logText, replace) {
   const src = S();
-  const base = replace ? { date: patch.date, last: {}, gap: {}, ov: {}, score: {}, settings: patch.settings || DEFAULT_SETTINGS } : effectiveWork(evId, src);
+  const base = replace ? { date: patch.date, last: {}, gap: {}, ov: {}, score: {}, su: {}, suOn: false, settings: patch.settings || DEFAULT_SETTINGS } : effectiveWork(evId, src);
   const next = mergeWork(base, replace ? Object.assign({}, patch, { last: patch.last, gap: patch.gap, ov: patch.ov }) : patch);
   next.exists = true; next.updatedAt = nowIso(); next.by = state.me || '';
   const existed = !!src.work[evId];
@@ -1253,17 +1269,18 @@ async function patchWork(evId, patch, logText, replace) {
   try {
     if (existed && !replace && state.remoteSeen[evId + 'w'] !== 'missing') {
       const up = { updatedAt: next.updatedAt, by: next.by };
-      ['last', 'gap', 'ov', 'score', 'settings'].forEach(k => { if (patch[k] && Object.keys(patch[k]).length) up[k] = patch[k]; });
+      ['last', 'gap', 'ov', 'score', 'su', 'settings'].forEach(k => { if (patch[k] && Object.keys(patch[k]).length) up[k] = patch[k]; });
+      if (patch.suOn !== undefined) up.suOn = !!patch.suOn;
       if (patch.date) up.date = patch.date;
       await q(path, () => db.doc(path).update(up));
     } else {
-      await q(path, () => db.doc(path).set({ date: next.date, last: next.last, gap: next.gap, ov: next.ov, score: next.score || {}, settings: next.settings, updatedAt: next.updatedAt, by: next.by }));
+      await q(path, () => db.doc(path).set({ date: next.date, last: next.last, gap: next.gap, ov: next.ov, score: next.score || {}, su: next.su || {}, suOn: !!next.suOn, settings: next.settings, updatedAt: next.updatedAt, by: next.by }));
     }
     if (logText) addLog(logText, evId);
   } catch (e) {
     if (e && e.code === 'invalid_argument' && existed && !replace) {
       // the shared doc may not exist yet: write it whole once
-      try { await q(path, () => db.doc(path).set({ date: next.date, last: next.last, gap: next.gap, ov: next.ov, score: next.score || {}, settings: next.settings, updatedAt: next.updatedAt, by: next.by })); if (logText) addLog(logText, evId); return; } catch (e2) { return writeFailed(e2); }
+      try { await q(path, () => db.doc(path).set({ date: next.date, last: next.last, gap: next.gap, ov: next.ov, score: next.score || {}, su: next.su || {}, suOn: !!next.suOn, settings: next.settings, updatedAt: next.updatedAt, by: next.by })); if (logText) addLog(logText, evId); return; } catch (e2) { return writeFailed(e2); }
     }
     writeFailed(e);
   }
@@ -1303,7 +1320,7 @@ async function rollForward(evId) {
   const { w, ms, r, rows } = rosterRows(evId);
   await setHistory(evId, withEntry(evId, w.date, rows, w.settings));
   const nd = nextDate(w.date);
-  const nw = { date: nd, last: {}, gap: {}, ov: {}, score: {}, settings: Object.assign({}, w.settings) };
+  const nw = { date: nd, last: {}, gap: {}, ov: {}, score: {}, su: {}, suOn: false, settings: Object.assign({}, w.settings) };
   ms.forEach(m => { const a = r.assign[m.key]; nw.last[m.hk] = a.slot === 'X' ? (m.last || '') : a.slot; nw.gap[m.hk] = a.gap; if (m.ov === 'A' || m.ov === 'B') nw.ov[m.hk] = m.ov; });
   await patchWork(evId, nw, 'Started the ' + EVENTS[evId].name + ' roster for ' + fmtShortEn(nd) + ' (the ' + fmtShortEn(w.date) + ' lineup is now the last event)', true);
 }
@@ -1315,7 +1332,7 @@ function parseMembersDoc(d) {
 }
 function parseWorkDoc(d) {
   const obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
-  return { date: typeof d.date === 'string' ? d.date : isoDate(nextFriday(new Date())), last: Object.assign({}, obj(d.last)), gap: Object.assign({}, obj(d.gap)), ov: Object.assign({}, obj(d.ov)), score: Object.assign({}, obj(d.score)), settings: Object.assign({}, DEFAULT_SETTINGS, obj(d.settings)), updatedAt: d.updatedAt || '', by: d.by || '', exists: true };
+  return { date: typeof d.date === 'string' ? d.date : isoDate(nextFriday(new Date())), last: Object.assign({}, obj(d.last)), gap: Object.assign({}, obj(d.gap)), ov: Object.assign({}, obj(d.ov)), score: Object.assign({}, obj(d.score)), su: Object.assign({}, obj(d.su)), suOn: !!d.suOn, settings: Object.assign({}, DEFAULT_SETTINGS, obj(d.settings)), updatedAt: d.updatedAt || '', by: d.by || '', exists: true };
 }
 function parseHistoryDoc(d) {
   const list = Array.isArray(d && d.history) ? d.history : [];
@@ -1593,12 +1610,13 @@ function buildReview(raw, screen, sourceLabel) {
     const isTeam = kind === 'A' || kind === 'B';
     let target = m.target;
     if (!target) target = '+new'; // unmatched players on any screen are almost always real members; the review flags them as New
-    const score = kind === 'members' ? '' : (r.score || r.power || '');
-    return { name: r.name, power: kind === 'members' ? r.power : '', score, role: isTeam ? (r.role === 'sub' ? 'sub' : 'main') : r.role, target, how: m.how, cands: m.cands };
+    const score = (kind === 'members' || kind === 'signups') ? '' : (r.score || r.power || '');
+    return { name: r.name, power: (kind === 'members' || kind === 'signups') ? r.power : '', score, role: isTeam ? (r.role === 'sub' ? 'sub' : 'main') : r.role, target, how: m.how, cands: m.cands };
   });
   rows.sort((x, y) => ({ close: 0, new: 1, exact: 2 }[x.how] - { close: 0, new: 1, exact: 2 }[y.how]) || x.name.localeCompare(y.name));
   const bo = battleOptions(state.event);
-  sh.review = { kind, ev: state.event, rows, screen, sourceLabel, removeMissing: false, replaceTeam: true, battle: bo[0].v };
+  const noPower = !realMembers.length || realMembers.filter(m => !m.power).length > realMembers.length / 2;
+  sh.review = { kind, ev: state.event, rows, screen, sourceLabel, removeMissing: false, replaceTeam: true, battle: bo[0].v, updatePower: noPower, replaceSu: true };
 }
 function reviewEffects(R) {
   const src = S(); const realMembers = src.example ? [] : src.members;
@@ -1641,13 +1659,13 @@ async function applyReview() {
   live.forEach((r, i) => {
     let key = r.target;
     if (key === '+new') {
-      const nm = mk(r.name, R.kind === 'members' ? (powers[i] || 0) : 0);
+      const nm = mk(r.name, (R.kind === 'members' || (R.kind === 'signups' && R.updatePower)) ? (powers[i] || 0) : 0);
       if (!nm.key) return;
       if (!byKey.has(nm.key)) { members.push(nm); byKey.set(nm.key, nm); added++; }
       key = nm.key;
     } else {
       const m = byKey.get(key);
-      if (R.kind === 'members' && m && powers[i] && Math.round(m.power / 1e5) !== Math.round(powers[i] / 1e5)) { m.power = powers[i]; updated++; }
+      if ((R.kind === 'members' || (R.kind === 'signups' && R.updatePower)) && m && powers[i] && Math.round(m.power / 1e5) !== Math.round(powers[i] / 1e5)) { m.power = powers[i]; updated++; }
     }
     found.set(key, r);
   });
@@ -1658,7 +1676,14 @@ async function applyReview() {
     const txt = parts.join(', ').replace(/^./, c => c.toUpperCase()) + ' member' + ((updated || added || removed) === 1 ? '' : 's') + ' from ' + what;
     await setMembers(members, txt);
   }
-  if (R.kind !== 'members') {
+  if (R.kind === 'signups') {
+    if (effectiveWork(evId).date < todayIso()) await rollForward(evId);
+    const w = effectiveWork(evId);
+    const su = {}; let nIn = 0;
+    members.forEach(m => { if (found.has(m.key)) { su[m.hk] = 1; nIn++; } else if (R.replaceSu) su[m.hk] = 0; });
+    const nOut = members.filter(m => !found.has(m.key) && (R.replaceSu || !(w.su && w.su[m.hk]))).length;
+    await patchWork(evId, { su, suOn: true }, 'Set the sign-ups for the ' + fmtShortEn(w.date) + ' battle: ' + nIn + ' signed up, ' + nOut + ' not signed up (from ' + what + ')');
+  } else if (R.kind !== 'members') {
     if (R.battle === 'current') await rollForward(evId);
     const w = effectiveWork(evId);
     const patch = { last: {}, gap: {}, score: {} };
@@ -1764,6 +1789,9 @@ function renderStatus() {
   if (!c.M && !c.S && !c.NS) lt = 'Last event: nothing on record, so everyone counts as having sat out once. Upload the Team A and Team B lineups to set it.';
   else lt = 'Last event' + (prev ? ' (' + fmtDay(prev.date) + ')' : '') + ': ' + c.M + ' main, ' + c.S + ' subs' + (c.NS ? ', ' + c.NS + ' no-show' + (c.NS > 1 ? 's' : '') : '');
   sl.className = 'status-line ' + (c.M || c.S || c.NS ? 'ok' : ''); sl.lastElementChild.textContent = lt;
+  const w = curWork(); const su = $('st-su');
+  if (w.suOn) { const nIn = ms.filter(m => m.signedUp).length; su.className = 'status-line ok'; su.querySelector('.txt').textContent = 'Sign-ups for ' + fmtDay(w.date) + ': ' + nIn + ' signed up, ' + (ms.length - nIn) + ' not signed up'; $('btn-su-clear').classList.toggle('hidden', !state.canWrite); }
+  else { su.className = 'status-line'; su.querySelector('.txt').textContent = 'Sign-ups: not uploaded, so every member counts as available.'; $('btn-su-clear').classList.add('hidden'); }
 }
 
 function renderBanners() {
@@ -1812,8 +1840,8 @@ function renderReview() {
   const byKey = new Map(members.map(m => [m.key, m]));
   const fx = reviewEffects(R);
   const isTeam = R.kind === 'A' || R.kind === 'B';
-  const showPower = R.kind === 'members';
-  const showScore = R.kind !== 'members';
+  const showPower = R.kind === 'members' || (R.kind === 'signups' && R.updatePower);
+  const showScore = R.kind !== 'members' && R.kind !== 'signups';
   const rowsHtml = R.rows.map((r, i) => {
     const opts = ['<option value="-ignore"' + (r.target === '-ignore' ? ' selected' : '') + '>Ignore this row</option>', '<option value="+new"' + (r.target === '+new' ? ' selected' : '') + '>Add as new member</option>'];
     const candSet = new Set(r.cands);
@@ -1831,7 +1859,11 @@ function renderReview() {
     return '<tr><td>' + badge + '</td><td translate="no">' + esc(r.name) + '</td><td><select data-ri="' + i + '" data-rf="target" aria-label="Member for ' + esc(r.name) + '">' + opts.join('') + '</select></td>' + powerCell + scoreCell + roleCell + '</tr>';
   }).join('');
   let optsHtml = '';
-  if (R.kind === 'members') {
+  if (R.kind === 'signups') {
+    const wd = effectiveWork(R.ev).date; const next = wd < todayIso() ? nextDate(wd) : wd;
+    optsHtml += '<label class="check"><input type="checkbox" id="rv-su-replace"' + (R.replaceSu ? ' checked' : '') + '><span>' + esc('Replace the sign-up list for the ' + fmtDay(next) + ' battle: the ' + fx.missing.length + ' members not in these screenshots sit this battle out. Untick if you are adding more screenshots to a list you already uploaded.') + '</span></label>';
+    optsHtml += '<label class="check"><input type="checkbox" id="rv-su-power"' + (R.updatePower ? ' checked' : '') + '><span>This screen shows 1st team power: update power from it</span></label>';
+  } else if (R.kind === 'members') {
     optsHtml += '<label class="check"><input type="checkbox" id="rv-remove"' + (R.removeMissing ? ' checked' : '') + '><span>' + esc('Remove the ' + fx.missing.length + ' members who are not in these screenshots (they left the alliance). Leave unticked if you only uploaded part of the list.') + '</span></label>';
   } else {
     const bo = battleOptions(R.ev);
@@ -1855,6 +1887,8 @@ function renderReview() {
   $('rv-discard').onclick = () => { state.shots.review = null; renderReview(); };
   const rm = $('rv-remove'); if (rm) rm.onchange = e => { R.removeMissing = e.target.checked; };
   const rp = $('rv-replace'); if (rp) rp.onchange = e => { R.replaceTeam = e.target.checked; };
+  const sr = $('rv-su-replace'); if (sr) sr.onchange = e => { R.replaceSu = e.target.checked; };
+  const sp = $('rv-su-power'); if (sp) sp.onchange = e => { R.updatePower = e.target.checked; renderReview(); };
   const rb = $('rv-battle'); if (rb) rb.onchange = e => { R.battle = e.target.value; renderReview(); };
 }
 
@@ -1932,7 +1966,7 @@ function renderLedger(r) {
       '<td>' + sel(STATUS_OPTS, m.last, 'data-h="' + m.hk + '" data-n="' + esc(m.name) + '" data-act="last" aria-label="Last event for ' + esc(m.name) + '"') + '</td>' +
       '<td class="r num muted">' + (m.score != null ? m.score.toLocaleString('en-US') : '—') + '</td>' +
       '<td class="r"><input type="number" min="0" max="99" value="' + gapOf(m) + '" data-h="' + m.hk + '" data-n="' + esc(m.name) + '" data-act="gap" aria-label="Events waited by ' + esc(m.name) + '"' + dis + '></td>' + pips +
-      '<td>' + sel(OV_OPTS, m.ov, 'data-h="' + m.hk + '" data-n="' + esc(m.name) + '" data-act="ov" aria-label="Officer setting for ' + esc(m.name) + '"') + '</td>' +
+      '<td>' + sel(OV_OPTS, m.ov, 'data-h="' + m.hk + '" data-n="' + esc(m.name) + '" data-act="ov" aria-label="Officer setting for ' + esc(m.name) + '"') + (w.suOn ? ' <label class="su"><input type="checkbox" data-h="' + m.hk + '" data-n="' + esc(m.name) + '" data-act="su"' + (m.signedUp ? ' checked' : '') + dis + '> <span>Signed up</span></label>' : '') + '</td>' +
       '<td><span class="pill ' + a.slot + '">' + esc(SLOT_LABEL[a.slot]) + '</span></td><td class="why">' + esc(a.reason) + '</td></tr>';
   });
   $('ledger').innerHTML = rows.join('') || '<tr><td colspan="10" class="muted">No members match.</td></tr>';
@@ -2069,6 +2103,7 @@ $('thumbs').addEventListener('click', e => { const b = e.target.closest('[data-r
 $('btn-read').onclick = readShots;
 $('btn-stop').onclick = () => { if (state.shots.ctl) state.shots.ctl.abort(); };
 $('btn-clear-shots').onclick = () => { clearShots(); renderShots(); };
+$('btn-su-clear').onclick = () => { if (!state.canWrite) return; patchWork(state.event, { suOn: false }, 'Cleared the sign-up list for the ' + fmtShortEn(curWork().date) + ' battle'); };
 $('btn-paste').onclick = () => {
   const rows = pasteRows($('ta-paste').value);
   if (!rows.length) { state.shots.error = 'No names found in the text.'; renderShots(); return; }
@@ -2095,7 +2130,10 @@ $('filters').addEventListener('click', e => { const b = e.target.closest('button
 $('ledger').addEventListener('change', e => {
   const t = e.target; const h = t.dataset.h; const act = t.dataset.act; const name = t.dataset.n || 'a member'; if (!h || !act) return;
   const w = curWork(); const patch = {}; let txt = null;
-  if (act === 'last') {
+  if (act === 'su') {
+    patch.su = { [h]: t.checked ? 1 : 0 };
+    txt = (t.checked ? 'Marked ' + name + ' as signed up' : 'Marked ' + name + ' as not signed up');
+  } else if (act === 'last') {
     patch.last = { [h]: t.value };
     const g = w.gap[h];
     if (t.value === 'AM' || t.value === 'BM') patch.gap = { [h]: 0 };
@@ -2175,7 +2213,7 @@ $('btn-key-test').onclick = async () => {
   catch (e) { ks.textContent = sampleErrorText(e); }
 };
 function backupJson() {
-  const R = state.remote; const w = k => (R.work[k] ? { date: R.work[k].date, last: R.work[k].last, gap: R.work[k].gap, ov: R.work[k].ov, score: R.work[k].score || {}, settings: R.work[k].settings } : null);
+  const R = state.remote; const w = k => (R.work[k] ? { date: R.work[k].date, last: R.work[k].last, gap: R.work[k].gap, ov: R.work[k].ov, score: R.work[k].score || {}, su: R.work[k].su || {}, suOn: !!R.work[k].suOn, settings: R.work[k].settings } : null);
   return JSON.stringify({ app: 'storm-rotation', version: 1, exportedAt: nowIso(), members: R.members.map(m => ({ n: m.name, p: Math.round(m.power) })), work: { ds: w('ds'), cs: w('cs') }, history: { ds: encodeHistory(R.saved.ds), cs: encodeHistory(R.saved.cs) } });
 }
 $('btn-backup').onclick = () => {
