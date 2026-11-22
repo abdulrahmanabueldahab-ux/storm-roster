@@ -6,7 +6,7 @@
 <title>ONE1 Storm Roster</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Saira+Stencil+One&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Saira+Stencil+One&display=swap" rel="stylesheet">
 <style>
 
 /* Layout idea: a field-ops board. Load → rules → two team boards side by side → sit-out bench → full member ledger. */
@@ -254,6 +254,21 @@ pre.mail { white-space: pre-wrap; background: var(--surface-2); border-radius: v
 #gate .drop { align-content: start; }
 #gate .drop input { width: 100%; }
 #gate textarea { min-height: 150px; }
+/* Arabic: Arabic glyphs come from IBM Plex Sans Arabic, layout flips right-to-left */
+:root { --font-body: "Barlow", "IBM Plex Sans Arabic", "Segoe UI", system-ui, sans-serif; --font-label: "Barlow Condensed", "IBM Plex Sans Arabic", "Arial Narrow", sans-serif; }
+[dir="rtl"] * { letter-spacing: 0 !important; }
+[dir="rtl"] body { font-size: 15.5px; }
+[dir="rtl"] .how { padding: 12px 34px 12px 16px; }
+[dir="rtl"] .banner { border-left: 0; border-right: 4px solid var(--accent); border-radius: var(--radius) 0 0 var(--radius); }
+[dir="rtl"] .banner.warn { border-right-color: var(--bad); }
+[dir="rtl"] .seg button + button { border-left: 0; border-right: 1.5px solid var(--ink); }
+[dir="rtl"] .thumb button { right: auto; left: 3px; }
+[dir="rtl"] th, [dir="rtl"] td { text-align: right; }
+[dir="rtl"] td.r, [dir="rtl"] th.r, [dir="rtl"] .board-h .meta, [dir="rtl"] ol.roster .n { text-align: left; }
+[dir="rtl"] .facts .dot { margin-right: 0; margin-left: 6px; }
+[dir="rtl"] .panel-h h2 .step { margin-right: 0; margin-left: 8px; }
+#r4-link, #key-input, #ta-config, .review td input[type="text"], td input[type="number"] { direction: ltr; }
+[dir="rtl"] #r4-link, [dir="rtl"] #key-input { text-align: left; }
 details.alt summary { cursor: pointer; font-size: 13.5px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; width: max-content; }
 details.alt[open] summary { margin-bottom: 8px; }
 </style>
@@ -263,11 +278,18 @@ details.alt[open] summary { margin-bottom: 8px; }
 
   <header class="top">
     <div>
-      <h1>ONE1 Storm <span>Roster</span></h1>
+      <h1 translate="no">ONE1 Storm <span>Roster</span></h1>
       <p class="sub">Picks ONE1's Team A and Team B for Desert Storm and Canyon Storm. Members who have waited longest play next, and 1st team power decides who goes where.</p>
       <div class="sync" id="sync"><span class="led"></span><span id="sync-text">Starting…</span></div>
     </div>
     <div class="event-ctl">
+      <div class="field" translate="no">
+        <span class="label" id="lang-label">Language · اللغة</span>
+        <div class="seg" role="group" aria-labelledby="lang-label">
+          <button type="button" id="lang-en" aria-pressed="true">English</button>
+          <button type="button" id="lang-ar" aria-pressed="false" lang="ar">عربي</button>
+        </div>
+      </div>
       <div class="field">
         <span class="label" id="ev-label">Event</span>
         <div class="seg" role="group" aria-labelledby="ev-label">
@@ -730,6 +752,328 @@ if (typeof module !== 'undefined') module.exports = { CAP, SLOT_LABEL, normKey, 
 
 </script>
 <script>
+// ================= Arabic translation layer =================
+// English stays the source text in the code. When Arabic is on, every text node,
+// placeholder, title and aria-label is translated as it appears (MutationObserver),
+// and elements marked translate="no" (player names) are never touched.
+const I18N = (function () {
+  const LANG_KEY = 'storm-site-lang';
+  let lang = 'en';
+  try { lang = localStorage.getItem(LANG_KEY) || ((navigator.language || '').toLowerCase().startsWith('ar') ? 'ar' : 'en'); } catch (e) { /* default */ }
+
+  const MONTHS = { Jan: 'يناير', Feb: 'فبراير', Mar: 'مارس', Apr: 'أبريل', May: 'مايو', Jun: 'يونيو', Jul: 'يوليو', Aug: 'أغسطس', Sep: 'سبتمبر', Sept: 'سبتمبر', Oct: 'أكتوبر', Nov: 'نوفمبر', Dec: 'ديسمبر' };
+  const EV = { 'Desert Storm': 'عاصفة الصحراء', 'Canyon Storm': 'عاصفة الوادي', 'DESERT STORM': 'عاصفة الصحراء', 'CANYON STORM': 'عاصفة الوادي' };
+  const date = s => String(s).replace(/\b(\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sept?|Oct|Nov|Dec)\b/g, (m, d, mo) => d + ' ' + MONTHS[mo]);
+  const ev = s => EV[s] || s;
+  // Arabic counted nouns: [one, two, few (3-10), many (11+)]
+  const P = {
+    member: ['عضو واحد', 'عضوان', 'أعضاء', 'عضوًا'],
+    shot: ['لقطة شاشة واحدة', 'لقطتا شاشة', 'لقطات شاشة', 'لقطة شاشة'],
+    event: ['حدثًا واحدًا', 'حدثين', 'أحداث', 'حدثًا'],
+    player: ['لاعب واحد', 'لاعبان', 'لاعبين', 'لاعبًا'],
+    noshow: ['غياب واحد', 'غيابان', 'حالات غياب', 'حالة غياب'],
+    sub: ['احتياطي واحد', 'احتياطيان', 'احتياطيين', 'احتياطيًا'],
+    file: ['ملف واحد', 'ملفان', 'ملفات', 'ملفًا']
+  };
+  function pl(n, k) { n = +n; const f = P[k]; if (n === 1) return f[0]; if (n === 2) return f[1]; return n + ' ' + (n >= 3 && n <= 10 ? f[2] : f[3]); }
+  function src(s) { const m = /^(\d+) screenshots?$/.exec(s); if (m) return pl(m[1], 'shot'); if (s === 'typed names') return 'أسماء مكتوبة'; return s; }
+
+  const AR = {
+    // header / gate / general
+    'Event': 'الحدث', 'Battle date': 'تاريخ المعركة', 'Language': 'اللغة',
+    'Picks ONE1\'s Team A and Team B for Desert Storm and Canyon Storm. Members who have waited longest play next, and 1st team power decides who goes where.': 'يختار الفريق A والفريق B لتحالف ONE1 في عاصفة الصحراء وعاصفة الوادي. من انتظر أطول يشارك أولًا، وقوة الفريق الأول تحدد مكان كل لاعب.',
+    'Desert Storm': 'عاصفة الصحراء', 'Canyon Storm': 'عاصفة الوادي',
+    'Registration': 'التسجيل', 'Mon–Wed': 'الإثنين–الأربعاء', 'Battle': 'المعركة', 'Friday, 30 min': 'الجمعة، 30 دقيقة', 'Per team': 'لكل فريق',
+    '20 main + 10 subs': '20 أساسي + 10 احتياط', 'One team': 'فريق واحد', 'per player': 'لكل لاعب', 'Subs': 'الاحتياط',
+    'enter only when a main leaves the battlefield': 'يدخلون فقط عندما يغادر لاعب أساسي ساحة المعركة',
+    'Off-season': 'خارج الموسم', 'battlefield': 'ساحة معركة', '1 vs 2': '1 ضد 2', 'alliances: Rulebringers vs Dawnbreakers': 'تحالفات: حماة النظام ضد كاسري الفجر',
+    'Up to 20': 'حتى 20', 'fight per alliance in a match': 'يقاتلون لكل تحالف في المباراة', 'switch in when a main leaves': 'يدخلون عندما يغادر لاعب أساسي',
+    'Not connected': 'غير متصل', 'Starting…': 'جارٍ التشغيل…', 'Connecting…': 'جارٍ الاتصال…',
+    'Example data · not connected to an alliance space': 'بيانات تجريبية · غير متصل بمساحة تحالف',
+    'Connection problem: see the message below': 'مشكلة في الاتصال: راجع الرسالة أدناه',
+    'Shared with your R4s': 'مشترك مع الـR4 لديك', 'changes show up live': 'التغييرات تظهر مباشرة',
+    'Connect to your alliance': 'الاتصال بتحالفك', 'R4 with a link': 'R4 لديه رابط',
+    'Open the link your alliance leader sent you, on this phone or computer. It connects you straight away, with no login.': 'افتح الرابط الذي أرسله لك قائد التحالف على هذا الجوال أو الكمبيوتر. ستتصل مباشرة بدون تسجيل دخول.',
+    'Leader: first-time setup': 'القائد: الإعداد لأول مرة',
+    'This creates a private space for your alliance and gives you the link for your R4s. Only do this once.': 'ينشئ هذا مساحة خاصة لتحالفك ويعطيك الرابط الخاص بالـR4. افعل ذلك مرة واحدة فقط.',
+    'Paste the Firebase web app config from setup step 1 (the block with apiKey and projectId). This creates a private space for your alliance and gives you the link for your R4s.': 'الصق إعدادات تطبيق Firebase من الخطوة 1 (الجزء الذي يحتوي على apiKey و projectId). ينشئ هذا مساحة خاصة لتحالفك ويعطيك رابط الـR4.',
+    'Your name in game': 'اسمك في اللعبة', 'Firebase config': 'إعدادات Firebase', 'Create alliance space': 'إنشاء مساحة التحالف',
+    'Just looking?': 'تتصفح فقط؟', 'Try it with example data': 'جرّبه ببيانات تجريبية', 'Shown to other R4s in Recent changes': 'يظهر لبقية الـR4 في آخر التغييرات',
+    'That does not look like a Firebase config. Paste the whole block that contains apiKey and projectId.': 'هذا لا يبدو كإعدادات Firebase. الصق الجزء كاملًا الذي يحتوي على apiKey و projectId.',
+    'This R4 link is incomplete. Ask for the link again and copy all of it.': 'رابط الـR4 هذا ناقص. اطلب الرابط مرة أخرى وانسخه كاملًا.',
+    'Could not load Firebase. Check your internet connection and reload.': 'تعذر تحميل Firebase. تحقق من اتصالك بالإنترنت وأعد تحميل الصفحة.',
+    'Anonymous sign-in is turned off. In Firebase: Build → Authentication → Sign-in method → Anonymous → Enable (setup step 2).': 'تسجيل الدخول المجهول متوقف. في Firebase: Build ← Authentication ← Sign-in method ← Anonymous ← Enable (خطوة الإعداد 2).',
+    'No connection to Firebase. Check your internet and reload.': 'لا يوجد اتصال بـ Firebase. تحقق من الإنترنت وأعد تحميل الصفحة.',
+    'Firebase refused access. Check that the security rules from setup step 4 are published, and that the R4 link was copied in full.': 'رفض Firebase الوصول. تأكد من نشر قواعد الأمان (خطوة الإعداد 4) ومن نسخ رابط الـR4 كاملًا.',
+    'The Firestore database does not exist yet. Create it in Firebase (setup step 3).': 'قاعدة بيانات Firestore غير موجودة بعد. أنشئها في Firebase (خطوة الإعداد 3).',
+    'Connected, but could not save. Check the security rules from setup step 4.': 'تم الاتصال لكن تعذر الحفظ. تحقق من قواعد الأمان (خطوة الإعداد 4).',
+    'Shared data is taking long to load. Check your connection.': 'تحميل البيانات المشتركة يستغرق وقتًا. تحقق من اتصالك.',
+    'Show example alliance': 'عرض تحالف تجريبي',
+    // step 1
+    'Update from screenshots': 'التحديث من لقطات الشاشة', 'What do the screenshots show?': 'ماذا تُظهر لقطات الشاشة؟',
+    'Member list': 'قائمة الأعضاء', 'Names + 1st team power': 'الأسماء + قوة الفريق الأول',
+    'Team A lineup': 'تشكيلة الفريق A', 'Who was in Team A': 'من كان في الفريق A', 'Team B lineup': 'تشكيلة الفريق B', 'Who was in Team B': 'من كان في الفريق B',
+    'Battle results': 'نتائج المعركة', 'Marks no-shows': 'يحدد الغائبين',
+    'Screenshots of the screen that lists members with their 1st team power. Scroll and take as many as you need; overlaps are fine.': 'لقطات للشاشة التي تعرض الأعضاء مع قوة الفريق الأول. مرّر وخذ ما تحتاج من لقطات، ولا مشكلة في التكرار.',
+    "Screenshots of Team A's registered players, main and subs. Use this when the in-game lineup differed from the tool, or to set up the first time.": 'لقطات للاعبين المسجلين في الفريق A، الأساسيين والاحتياط. استخدمها عندما تختلف التشكيلة في اللعبة عن الأداة، أو عند الإعداد لأول مرة.',
+    "Screenshots of Team B's registered players, main and subs.": 'لقطات للاعبين المسجلين في الفريق B، الأساسيين والاحتياط.',
+    'Screenshots of the results or scoreboard after the battle. Registered mains who are missing get marked No-show, and subs who fought get credit as main.': 'لقطات لشاشة النتائج بعد المعركة. الأساسيون المسجلون غير الموجودين فيها يُسجَّلون كغائبين، والاحتياط الذين قاتلوا يُحتسبون أساسيين.',
+    'Connect to your alliance space to read screenshots. You can still type names below.': 'اتصل بمساحة تحالفك لقراءة لقطات الشاشة. يمكنك كتابة الأسماء أدناه.',
+    'To read screenshots, add a free Gemini API key in step 06 (one R4 does this once for everyone). You can still type names below.': 'لقراءة لقطات الشاشة، أضف مفتاح Gemini API مجانيًا في الخطوة 06 (يقوم به R4 واحد مرة واحدة للجميع). يمكنك كتابة الأسماء أدناه.',
+    'Choose screenshots': 'اختر لقطات الشاشة', 'Remove all': 'إزالة الكل', 'Stop': 'إيقاف',
+    'No screenshots? Type or paste names instead': 'لا توجد لقطات؟ اكتب الأسماء أو الصقها بدلًا من ذلك',
+    'One player per line: name, then power (or role for team lists)': 'لاعب واحد في كل سطر: الاسم ثم القوة (أو الدور لقوائم الفرق)',
+    'Check these names': 'تحقق من هذه الأسماء', 'No names found in the text.': 'لم يتم العثور على أسماء في النص.',
+    'No players were found in these screenshots.': 'لم يتم العثور على لاعبين في هذه اللقطات.',
+    'You can view this page but not change it. Ask the owner to give you edit access.': 'يمكنك عرض هذه الصفحة دون تعديلها. اطلب من المالك صلاحية التعديل.',
+    'No members yet. Upload member list screenshots to start.': 'لا يوجد أعضاء بعد. ارفع لقطات قائمة الأعضاء للبدء.',
+    'Showing 100 made-up members. Connect to your alliance space to use real data.': 'يتم عرض 100 عضو وهمي. اتصل بمساحة تحالفك لاستخدام بيانات حقيقية.',
+    'Loading shared data…': 'جارٍ تحميل البيانات المشتركة…',
+    'Last event: nothing on record, so everyone counts as having sat out once. Upload the Team A and Team B lineups to set it.': 'الحدث السابق: لا يوجد سجل، لذا يُحتسب الجميع كأنهم غابوا مرة واحدة. ارفع تشكيلتي الفريق A والفريق B لتحديده.',
+    // review
+    'Check before applying': 'راجع قبل التطبيق', 'Read from screenshot': 'المقروء من اللقطة', 'Member': 'العضو', 'Power': 'القوة', 'Role': 'الدور',
+    'Ignore this row': 'تجاهل هذا السطر', 'Add as new member': 'إضافة كعضو جديد', 'Closest names': 'أقرب الأسماء', 'All members': 'كل الأعضاء',
+    'Ignored': 'متجاهَل', 'New': 'جديد', 'Match': 'مطابق', 'Check': 'تحقق', 'Main': 'أساسي', 'Sub': 'احتياطي',
+    'players read': 'تمت قراءتهم', 'matched': 'مطابق', 'close matches to check': 'تطابق قريب للتحقق', 'new': 'جديد', 'ignored': 'متجاهَل',
+    'Names can be misread. Check the rows marked Check or New, and pick the right member if needed.': 'قد تُقرأ الأسماء بشكل خاطئ. راجع الأسطر المعلّمة بـ «تحقق» أو «جديد» واختر العضو الصحيح عند الحاجة.',
+    'Which battle is this from?': 'من أي معركة هذه؟',
+    'Replace the whole Team A list: anyone in Team A who is not in these screenshots counts as sat out. Untick if you are adding more screenshots to a list you already uploaded.': 'استبدال قائمة الفريق A كاملة: أي لاعب في الفريق A غير موجود في هذه اللقطات يُحتسب خارج المشاركة. ألغِ التحديد إذا كنت تضيف لقطات لقائمة رفعتها سابقًا.',
+    'Replace the whole Team B list: anyone in Team B who is not in these screenshots counts as sat out. Untick if you are adding more screenshots to a list you already uploaded.': 'استبدال قائمة الفريق B كاملة: أي لاعب في الفريق B غير موجود في هذه اللقطات يُحتسب خارج المشاركة. ألغِ التحديد إذا كنت تضيف لقطات لقائمة رفعتها سابقًا.',
+    'Make sure every page of the results is included, or players on missing pages get marked No-show.': 'تأكد من تضمين كل صفحات النتائج، وإلا سيُسجَّل اللاعبون في الصفحات الناقصة كغائبين.',
+    'nobody': 'لا أحد', 'Applying updates the shared data for every R4.': 'التطبيق يحدّث البيانات المشتركة لجميع الـR4.', 'Discard': 'تجاهل', 'Apply': 'تطبيق',
+    'Applied. Every R4 now sees the update.': 'تم التطبيق. جميع الـR4 يرون التحديث الآن.',
+    // step 2
+    'Set the rules': 'ضبط القواعد', 'Core players': 'اللاعبون الثابتون', 'Fewer core players': 'تقليل اللاعبين الثابتين', 'More core players': 'زيادة اللاعبين الثابتين',
+    'Top-power members who play main in Team A every time. 0 means everyone rotates.': 'الأعضاء الأعلى قوة الذين يلعبون أساسيين في الفريق A كل مرة. 0 يعني أن الجميع يتناوب.',
+    'Team split': 'توزيع الفريقين', 'Strongest in A': 'الأقوى في A', 'Balanced': 'متوازن',
+    'Team A gets the highest-power players of this week. Team B gets the rest.': 'يحصل الفريق A على أعلى اللاعبين قوة هذا الأسبوع، ويحصل الفريق B على الباقين.',
+    'Both teams get about the same total power.': 'يحصل الفريقان على مجموع قوة متقارب.',
+    'Teams': 'الفرق', 'A + B': 'A + B', 'A only': 'A فقط',
+    'A + B registers 60 members (40 main, 20 subs). A only registers 30.': 'A + B يسجّل 60 عضوًا (40 أساسي و20 احتياط). A فقط يسجّل 30.',
+    'No-show penalty': 'عقوبة الغياب', 'On': 'تشغيل', 'Off': 'إيقاف',
+    'Members marked No-show last time go to the back of the line for one event.': 'الأعضاء المسجلون كغائبين في المرة السابقة ينتقلون إلى آخر الدور لحدث واحد.',
+    'Members who have waited the most events without a main slot go first.': 'من انتظر أكثر عدد من الأحداث دون مقعد أساسي يشارك أولًا.',
+    "When the wait is equal, last time's subs go first, then higher 1st team power.": 'عند تساوي الانتظار، يتقدم احتياط المرة السابقة، ثم الأعلى في قوة الفريق الأول.',
+    'The first 40 in line play main, the next 20 are subs, the rest sit out. Power then decides Team A or Team B.': 'أول 40 في الدور أساسيون، و20 التالون احتياط، والباقون خارج المشاركة. ثم تحدد القوة الفريق A أو B.',
+    // step 3
+    'Copy for alliance mail': 'نسخ لبريد التحالف', 'Save roster': 'حفظ التشكيلة', 'Update saved roster': 'تحديث التشكيلة المحفوظة',
+    'Registered': 'مسجّل', 'Sitting out': 'خارج المشاركة', 'Away': 'غائب', 'Main power': 'قوة الأساسيين', 'Avg': 'المتوسط', 'Top': 'الأعلى',
+    'Team A': 'الفريق A', 'Team B': 'الفريق B', 'Nobody': 'لا أحد', 'Nobody sits out this time.': 'لا أحد خارج المشاركة هذه المرة.',
+    'waited but no slot was left; first in line next time.': 'انتظر لكن لم يتبقَّ مكان؛ الأول في الدور المرة القادمة.',
+    'played main last time.': 'لعب أساسيًا في المرة السابقة.',
+    'Upload your member list in step 1.': 'ارفع قائمة الأعضاء في الخطوة 1.', 'Select all and copy': 'حدّد الكل وانسخ',
+    'Roster': 'التشكيلة',
+    // tags & reasons
+    'Core': 'ثابت', 'Locked': 'مثبّت', 'No-show': 'غائب', 'Spare': 'إضافي', 'Rest': 'راحة', 'Was sub': 'كان احتياطيًا', 'Next': 'التالي',
+    'Core: top power, always in Team A': 'ثابت: الأعلى قوة، دائمًا في الفريق A', 'Locked by an officer': 'مثبّت بواسطة أحد الضباط', 'Marked unavailable': 'محدد كغائب',
+    'Sub last time': 'كان احتياطيًا في المرة السابقة', 'sub now': 'احتياطي الآن', 'main next time': 'أساسي في المرة القادمة', 'first in line next time': 'الأول في الدور المرة القادمة',
+    'Main last time': 'لعب أساسيًا في المرة السابقة', 'fills a spare slot': 'يشغل مقعدًا متبقيًا', 'sub this time': 'احتياطي هذه المرة', 'rests this time': 'يرتاح هذه المرة',
+    'No-show last time': 'غاب في المرة السابقة', 'No-show last time (penalty off)': 'غاب في المرة السابقة (العقوبة متوقفة)', 'back of the queue': 'في آخر الدور',
+    // step 4
+    'Fix last event, mark no-shows, lock players or mark them away. Every R4 sees your changes live.': 'صحّح الحدث السابق، حدّد الغائبين، ثبّت اللاعبين أو حدّدهم كغائبين. جميع الـR4 يرون تغييراتك مباشرة.',
+    'Search a name': 'ابحث عن اسم', 'Filter members': 'تصفية الأعضاء', 'All': 'الكل', 'Out': 'خارج',
+    'Oldest on the left': 'الأقدم على اليسار', '#': '#', 'Name': 'الاسم', '1st team power': 'قوة الفريق الأول', 'Last event': 'الحدث السابق', 'Waited': 'الانتظار',
+    'Events in a row without a main slot': 'عدد الأحداث المتتالية دون مقعد أساسي', 'Recent': 'الأخيرة', 'Officer': 'الضابط', 'This event': 'هذا الحدث', 'Why': 'السبب',
+    'A Main': 'A أساسي', 'A Sub': 'A احتياطي', 'B Main': 'B أساسي', 'B Sub': 'B احتياطي', '—': '—',
+    'Auto': 'تلقائي', 'Lock Team A': 'تثبيت في الفريق A', 'Lock Team B': 'تثبيت في الفريق B', 'Away / unavailable': 'غائب / غير متاح',
+    'Unavailable': 'غير متاح', 'Unknown': 'غير معروف', 'No members match.': 'لا يوجد أعضاء مطابقون.', 'not in the alliance': 'ليس في التحالف',
+    // step 5
+    'History': 'السجل', 'Saved rosters': 'التشكيلات المحفوظة', 'Recent changes by R4s': 'آخر تغييرات الـR4',
+    'The newest roster before the battle date counts as the last event.': 'أحدث تشكيلة قبل تاريخ المعركة تُحتسب كالحدث السابق.',
+    'View': 'عرض', 'Delete': 'حذف', 'Confirm delete': 'تأكيد الحذف', 'last event': 'الحدث السابق', 'this battle': 'هذه المعركة',
+    'Copy this roster': 'نسخ هذه التشكيلة', 'Close': 'إغلاق', 'No changes yet.': 'لا توجد تغييرات بعد.', 'You': 'أنت', 'An R4': 'أحد الـR4', 'just now': 'الآن',
+    // step 6
+    'Alliance settings': 'إعدادات التحالف', 'R4 link': 'رابط الـR4', 'Copy': 'نسخ',
+    'Anyone with this link can see and change the roster, with no login. Send it only to your R4s in a private chat. If it ever leaks, create a new space and restore a backup there.': 'أي شخص لديه هذا الرابط يمكنه رؤية التشكيلة وتعديلها بدون تسجيل دخول. أرسله فقط للـR4 في محادثة خاصة. إذا تسرّب، أنشئ مساحة جديدة واستعد نسخة احتياطية فيها.',
+    'Your name': 'اسمك', 'Shown in Recent changes so R4s know who did what. Saved on this device only.': 'يظهر في آخر التغييرات ليعرف الـR4 من قام بماذا. يُحفظ على هذا الجهاز فقط.',
+    'Screenshot reading · Gemini API key': 'قراءة لقطات الشاشة · مفتاح Gemini API', 'Paste a Gemini API key': 'الصق مفتاح Gemini API', 'Gemini API key': 'مفتاح Gemini API',
+    'Save key': 'حفظ المفتاح', 'Test key': 'اختبار المفتاح', 'Remove key': 'إزالة المفتاح', 'Get a free key at': 'احصل على مفتاح مجاني من',
+    '. One key works for every R4, and anyone with the R4 link can use it, so use a free key with billing turned off.': '. مفتاح واحد يكفي لجميع الـR4، وأي شخص لديه رابط الـR4 يمكنه استخدامه، لذا استخدم مفتاحًا مجانيًا مع إيقاف الفوترة.',
+    'No key yet. Screenshot reading is off until one R4 adds a key.': 'لا يوجد مفتاح بعد. قراءة اللقطات متوقفة حتى يضيف أحد الـR4 مفتاحًا.',
+    'Checking the key with Gemini…': 'جارٍ التحقق من المفتاح مع Gemini…', 'Testing…': 'جارٍ الاختبار…',
+    'That is too short to be a Gemini API key. In AI Studio, click the copy icon next to the key and paste it here.': 'هذا أقصر من أن يكون مفتاح Gemini API. في AI Studio، اضغط أيقونة النسخ بجانب المفتاح والصقه هنا.',
+    'Key saved for everyone': 'تم حفظ المفتاح للجميع', 'Key removed': 'تمت إزالة المفتاح',
+    'Backup': 'النسخ الاحتياطي', 'Download backup': 'تنزيل نسخة احتياطية', 'Restore backup': 'استعادة نسخة احتياطية', 'Replace': 'استبدال', 'Cancel': 'إلغاء',
+    'Backup restored': 'تمت استعادة النسخة الاحتياطية', 'That file is not a backup from this tool.': 'هذا الملف ليس نسخة احتياطية من هذه الأداة.',
+    'Disconnect this device': 'فصل هذا الجهاز', 'Confirm: disconnect this device': 'تأكيد: فصل هذا الجهاز', 'Name cleared': 'تم مسح الاسم',
+    'Alliance space created. Copy the R4 link in step 06.': 'تم إنشاء مساحة التحالف. انسخ رابط الـR4 من الخطوة 06.',
+    'Started the next roster': 'بدأت التشكيلة التالية', 'Copy was blocked here. The text is selected below.': 'تم منع النسخ هنا. النص محدد أدناه.',
+    'Shared with your R4s': 'تمت المشاركة مع الـR4',
+    // errors (reading, saving)
+    'Add a Gemini API key in step 06 first. You can still type names below.': 'أضف مفتاح Gemini API في الخطوة 06 أولًا. يمكنك كتابة الأسماء أدناه.',
+    'Gemini refused the API key. Check it in step 06.': 'رفض Gemini مفتاح API. تحقق منه في الخطوة 06.',
+    'Gemini is not available in this region for this key. Another R4 in a supported country can upload instead.': 'Gemini غير متاح في هذه المنطقة لهذا المفتاح. يمكن لـR4 آخر في دولة مدعومة الرفع بدلًا منك.',
+    'The free Gemini limit was reached. Wait a minute and try again, or upload fewer screenshots at a time.': 'تم الوصول للحد المجاني في Gemini. انتظر دقيقة وحاول مجددًا، أو ارفع لقطات أقل في كل مرة.',
+    'One of the screenshots could not be opened. Remove it and try again.': 'تعذر فتح إحدى اللقطات. أزلها وحاول مجددًا.',
+    'Gemini declined to read these screenshots. Try different ones.': 'رفض Gemini قراءة هذه اللقطات. جرّب لقطات أخرى.',
+    'No players could be read from these screenshots. Try clearer screenshots, or fewer at a time.': 'تعذرت قراءة أي لاعب من هذه اللقطات. جرّب لقطات أوضح أو عددًا أقل في كل مرة.',
+    'The players read so far are below.': 'اللاعبون الذين تمت قراءتهم حتى الآن بالأسفل.',
+    'Your change was not saved: you have view-only access.': 'لم يتم حفظ تغييرك: لديك صلاحية عرض فقط.',
+    'Shared storage is full. Delete an old saved roster.': 'المساحة المشتركة ممتلئة. احذف تشكيلة محفوظة قديمة.',
+    'A change could not be saved. Check your connection and try again.': 'تعذر حفظ أحد التغييرات. تحقق من اتصالك وحاول مجددًا.',
+    'Your member list is only on this device. Share it so other R4s see the same data.': 'قائمة أعضائك موجودة على هذا الجهاز فقط. شاركها ليرى بقية الـR4 نفس البيانات.',
+    'Share with R4s': 'مشاركة مع الـR4', 'Connect to your alliance space': 'الاتصال بمساحة تحالفك',
+    // banners
+    'Example alliance.': 'تحالف تجريبي.', 'These 100 members are made up so you can see how it works. Nothing here is saved or shared.': 'هؤلاء الـ100 عضو وهميون لترى كيف تعمل الأداة. لا شيء هنا يُحفظ أو يُشارك.',
+    'Battle day.': 'يوم المعركة.', 'After the battle, upload the results screenshots (step 1, Battle results) to mark no-shows.': 'بعد المعركة، ارفع لقطات النتائج (الخطوة 1، نتائج المعركة) لتحديد الغائبين.',
+    'Canyon Storm only runs in the off-season. Its last event is tracked separately from Desert Storm.': 'عاصفة الوادي تقام فقط خارج الموسم. يُتابَع حدثها السابق بشكل منفصل عن عاصفة الصحراء.',
+    'Connect to your alliance': 'الاتصال بتحالفك'
+  };
+
+  const PAT = [
+    [/^Waited (\d+) events? without a main slot$/, m => 'انتظر ' + pl(m[1], 'event') + ' دون مقعد أساسي'],
+    [/^waited (\d+) events?$/, m => 'انتظر ' + pl(m[1], 'event')],
+    [/^Waited (\d+)$/, m => 'انتظر ' + m[1]],
+    [/^Read (\d+) screenshots?$/, m => 'قراءة ' + pl(m[1], 'shot')],
+    [/^Reading (\d+) screenshots?…$/, m => 'جارٍ قراءة ' + pl(m[1], 'shot') + '…'],
+    [/^Reading screenshots (\d+)–(\d+) of (\d+)…$/, m => 'جارٍ قراءة اللقطات ' + m[1] + '–' + m[2] + ' من ' + m[3] + '…'],
+    [/^(\d+) screenshots? added$/, m => 'تمت إضافة ' + pl(m[1], 'shot')],
+    [/^(\d+) files? (?:were|was) skipped \(only PNG, JPG or WebP screenshots, up to 40 at a time\)\.$/, m => 'تم تخطي ' + pl(m[1], 'file') + ' (لقطات PNG أو JPG أو WebP فقط، حتى 40 في كل مرة).'],
+    [/^(\d+) members$/, m => pl(m[1], 'member')],
+    [/^(\d+) members · power updated (.+)$/, m => pl(m[1], 'member') + ' · تم تحديث القوة ' + m[2]],
+    [/^Last event(?: \((.+)\))?: (\d+) main, (\d+) subs(?:, (\d+) no-shows?)?$/, m => 'الحدث السابق' + (m[1] ? ' (' + date(m[1]) + ')' : '') + ': ' + m[2] + ' أساسي، ' + m[3] + ' احتياط' + (m[4] ? '، ' + pl(m[4], 'noshow') : '')],
+    [/^last change (.+?) by (.+)$/, m => 'آخر تغيير ' + m[1] + ' بواسطة ' + m[2]],
+    [/^last change (.+)$/, m => 'آخر تغيير ' + m[1]],
+    [/^Rules for (Desert Storm|Canyon Storm)$/, m => 'قواعد ' + ev(m[1])],
+    [/^shared by all R4s$/, () => 'مشتركة بين جميع الـR4'],
+    [/^(Desert Storm|Canyon Storm) roster$/, m => 'تشكيلة ' + ev(m[1])],
+    [/^Gemini saw: (.+)$/, m => 'ما قرأه Gemini: ' + m[1]],
+    [/^The battle on (.+) \(also starts the next roster\)$/, m => 'معركة ' + date(m[1]) + ' (ويبدأ معها التشكيل التالي)'],
+    [/^Today's battle (.+) \(also starts the next roster\)$/, m => 'معركة اليوم ' + date(m[1]) + ' (ويبدأ معها التشكيل التالي)'],
+    [/^The last event before (.+?)(?: \((.+)\))?$/, m => 'الحدث السابق قبل ' + date(m[1]) + (m[2] ? ' (' + date(m[2]) + ')' : '')],
+    [/^Will be marked No-show \((\d+)\):$/, m => 'سيُسجَّلون كغائبين (' + m[1] + '):'],
+    [/^Subs who fought, counted as main \((\d+)\):$/, m => 'احتياط قاتلوا، يُحتسبون أساسيين (' + m[1] + '):'],
+    [/^Remove the (\d+) members who are not in these screenshots \(they left the alliance\)\. Leave unticked if you only uploaded part of the list\.$/, m => 'إزالة ' + pl(m[1], 'member') + ' غير موجودين في هذه اللقطات (غادروا التحالف). اتركه بدون تحديد إذا رفعت جزءًا من القائمة فقط.'],
+    [/^The (.+) battle is over\. Start the next roster: this lineup becomes the last event\. Upload the battle results first if you want no-shows marked\.$/, m => 'انتهت معركة ' + date(m[1]) + '. ابدأ التشكيلة التالية: ستصبح هذه التشكيلة هي الحدث السابق. ارفع نتائج المعركة أولًا إذا أردت تحديد الغائبين.'],
+    [/^Start the (.+) roster$/, m => 'بدء تشكيلة ' + date(m[1])],
+    [/^Roster saved for (.+)$/, m => 'تم حفظ التشكيلة لـ ' + date(m[1])],
+    [/^Sitting out$/, () => 'خارج المشاركة'],
+    [/^(\d+) first in line next time$/, m => m[1] + ' في أول الدور المرة القادمة'],
+    [/^(\d+) \+ (\d+) away$/, m => m[1] + ' + ' + m[2] + ' غائب'],
+    [/^Only (\d+) of (\d+) slots are filled: not enough available members\.$/, m => 'تم ملء ' + m[1] + ' من ' + m[2] + ' مقعدًا فقط: لا يوجد أعضاء متاحون كفاية.'],
+    [/^(\d+) player\(s\) locked to Team B were moved to Team A because Team B is off\.$/, m => 'تم نقل ' + m[1] + ' لاعب مثبّت في الفريق B إلى الفريق A لأن الفريق B متوقف.'],
+    [/^(\d+) locked player\(s\) did not fit \(20 mains per team\) and went into the normal rotation\.$/, m => 'لم يتسع ' + m[1] + ' لاعب مثبّت (20 أساسيًا لكل فريق) فدخلوا التناوب العادي.'],
+    [/^Core size was cut to (\d+) because officers already locked players into Team A\.$/, m => 'تم تقليل عدد الثابتين إلى ' + m[1] + ' لأن الضباط ثبّتوا لاعبين في الفريق A مسبقًا.'],
+    [/^· (\d+) main · (\d+) subs · (\d+) out( ·)?$/, m => '· ' + m[1] + ' أساسي · ' + m[2] + ' احتياط · ' + m[3] + ' خارج' + (m[4] ? ' ·' : '')],
+    [/^Nothing saved for (Desert Storm|Canyon Storm) yet\. Press Save roster in step 3 once the lineup is registered\.$/, m => 'لا يوجد شيء محفوظ لـ ' + ev(m[1]) + ' بعد. اضغط «حفظ التشكيلة» في الخطوة 3 بعد تسجيل التشكيلة.'],
+    [/^(\d{1,2} \S+): (.+)$/, m => date(m[1]) + ': ' + (trCore(m[2]) || m[2])],
+    [/^A key is saved(?: by (.+?))?(?: \((.+)\))?\. Every R4 can read screenshots\.$/, m => 'تم حفظ مفتاح' + (m[1] ? ' بواسطة ' + m[1] : '') + (m[2] ? ' (' + m[2] + ')' : '') + '. يمكن لجميع الـR4 قراءة اللقطات.'],
+    [/^The key works\. Screenshots are read with (.+)\.$/, m => 'المفتاح يعمل. تتم قراءة اللقطات باستخدام ' + m[1] + '.'],
+    [/^(.+) Gemini could not be reached to check it, so try Test key in a minute\.$/, m => (trCore(m[1]) || m[1]) + ' تعذر الوصول إلى Gemini للتحقق منه، جرّب «اختبار المفتاح» بعد دقيقة.'],
+    [/^(.+) \(Gemini says: (.+)\)$/, m => (trCore(m[1]) || m[1]) + ' (رد Gemini: ' + m[2] + ')'],
+    [/^(.+) The players read so far are below\.$/, m => (trCore(m[1]) || m[1]) + ' اللاعبون الذين تمت قراءتهم حتى الآن بالأسفل.'],
+    [/^Something went wrong while reading(?: \((.+)\))?\. Try again\.$/, m => 'حدث خطأ أثناء القراءة' + (m[1] ? ' (' + m[1] + ')' : '') + '. حاول مجددًا.'],
+    [/^Could not connect to Firebase \((.+)\)\.$/, m => 'تعذر الاتصال بـ Firebase (' + m[1] + ').'],
+    [/^Firebase refused this site\. (.+)$/, () => 'رفض Firebase هذا الموقع. تحقق من الإعدادات، ومن إضافة النطاق في Authentication ← Settings ← Authorized domains.'],
+    [/^(.+) copied$/, m => 'تم نسخ ' + (trCore(m[1]) || m[1])],
+    [/^Roster$/, () => 'التشكيلة'], [/^CSV$/, () => 'CSV'],
+    [/^Saved\. Your changes now show as (.+)$/, m => 'تم الحفظ. ستظهر تغييراتك باسم ' + m[1]],
+    [/^Replace all shared data with the backup from (.+) \((\d+) members\)\? Every R4 will see the restored data\.$/, m => 'استبدال كل البيانات المشتركة بالنسخة الاحتياطية من ' + m[1] + ' (' + pl(m[2], 'member') + ')؟ سيرى جميع الـR4 البيانات المستعادة.'],
+    // change log (stored in English)
+    [/^Saved the (Desert Storm|Canyon Storm) roster for (.+)$/, m => 'حفظ تشكيلة ' + ev(m[1]) + ' لـ ' + date(m[2])],
+    [/^Started the (Desert Storm|Canyon Storm) roster for (.+) \(the (.+) lineup is now the last event\)$/, m => 'بدأ تشكيلة ' + ev(m[1]) + ' لـ ' + date(m[2]) + ' (أصبحت تشكيلة ' + date(m[3]) + ' هي الحدث السابق)'],
+    [/^Set the (Desert Storm|Canyon Storm) battle date to (.+)$/, m => 'غيّر تاريخ معركة ' + ev(m[1]) + ' إلى ' + date(m[2])],
+    [/^Set the Team ([AB]) lineup of the last event \((\d+) main, (\d+) subs\) from (.+)$/, m => 'حدّد تشكيلة الفريق ' + m[1] + ' في الحدث السابق (' + m[2] + ' أساسي، ' + m[3] + ' احتياط) من ' + src(m[4])],
+    [/^Checked battle results from (.+): (\d+) no-shows?(?:, (\d+) subs? who fought)?$/, m => 'راجع نتائج المعركة من ' + src(m[1]) + ': ' + pl(m[2], 'noshow') + (m[3] ? '، ' + pl(m[3], 'sub') + ' قاتلوا' : '')],
+    [/^Marked (.+) away$/, m => 'حدّد ' + m[1] + ' كغائب'],
+    [/^Locked (.+) in Team ([AB])$/, m => 'ثبّت ' + m[1] + ' في الفريق ' + m[2]],
+    [/^Set (.+) back to auto$/, m => 'أعاد ' + m[1] + ' إلى تلقائي'],
+    [/^Set (.+)'s last event to (.+)$/, m => 'غيّر الحدث السابق لـ ' + m[1] + ' إلى ' + (trCore(m[2]) || m[2])],
+    [/^(.+) members? from (.+)$/, m => { const parts = m[1].split(', ').map(p => { let x = /^updated power for (\d+)$/i.exec(p); if (x) return 'حدّث القوة لـ ' + pl(x[1], 'member'); x = /^added (\d+)$/i.exec(p); if (x) return 'أضاف ' + pl(x[1], 'member'); x = /^removed (\d+)$/i.exec(p); if (x) return 'أزال ' + pl(x[1], 'member'); return null; }); return parts.every(Boolean) ? parts.join('، ') + ' من ' + src(m[2]) : null; }],
+    [/^Added a Gemini API key for reading screenshots$/, () => 'أضاف مفتاح Gemini API لقراءة اللقطات'],
+    [/^Removed the Gemini API key$/, () => 'أزال مفتاح Gemini API'],
+    [/^Restored a backup$/, () => 'استعاد نسخة احتياطية'],
+    [/^Deleted the (Desert Storm|Canyon Storm) roster for (.+)$/, m => 'حذف تشكيلة ' + ev(m[1]) + ' لـ ' + date(m[2])],
+    [/^Shared the member list \((\d+) members\)$/, m => 'شارك قائمة الأعضاء (' + pl(m[1], 'member') + ')'],
+    // aria labels with names
+    [/^(Last event for|Events waited by|Officer setting for|Member for|Power read for|Role for) (.+)$/, m => ({ 'Last event for': 'الحدث السابق لـ ', 'Events waited by': 'الأحداث التي انتظرها ', 'Officer setting for': 'إعداد الضابط لـ ', 'Member for': 'العضو لـ ', 'Power read for': 'القوة المقروءة لـ ', 'Role for': 'الدور لـ ' }[m[1]]) + m[2]],
+    [/^· Top$/, () => '· الأعلى'],
+    [/^Remove screenshot (\d+)$/, m => 'إزالة اللقطة ' + m[1]],
+    [/^Screenshot (\d+)$/, m => 'لقطة ' + m[1]]
+  ];
+
+  function trCore(c) {
+    if (Object.prototype.hasOwnProperty.call(AR, c)) return AR[c];
+    for (const [re, fn] of PAT) { const m = c.match(re); if (m) { const r = fn(m); if (r != null) return r; } }
+    if (c.includes(' · ')) {
+      const parts = c.split(' · '); const tp = parts.map(p => { const t = trCore(p); return t == null ? date(p) : t; });
+      if (tp.some((x, i) => x !== parts[i])) return tp.join(' · ');
+    }
+    if (c.includes(', ')) {
+      const parts = c.split(', '); const tp = parts.map(p => trCore(p));
+      if (tp.every(x => x != null)) return tp.join('، ');
+    }
+    return null;
+  }
+  function trText(s) {
+    const core = s.trim(); if (!core) return null;
+    const out = trCore(core); if (out == null) return null;
+    return s.slice(0, s.indexOf(core)) + out + s.slice(s.indexOf(core) + core.length);
+  }
+  const ATTRS = ['placeholder', 'title', 'aria-label', 'label'];
+  function skip(el) { return !el || el.closest('[translate="no"], script, style, textarea'); }
+  function doText(n) {
+    if (skip(n.parentElement)) return;
+    if (n.__tr !== undefined && n.nodeValue === n.__tr) return; // our own write
+    n.__en = n.nodeValue;
+    if (lang !== 'ar') { n.__tr = undefined; return; }
+    const t = trText(n.__en); if (t != null && t !== n.nodeValue) { n.__tr = t; n.nodeValue = t; }
+  }
+  function doAttrs(el) {
+    if (skip(el)) return;
+    ATTRS.forEach(a => {
+      if (!el.hasAttribute(a)) return;
+      const key = 'data-en-' + a; const cur = el.getAttribute(a);
+      let en = el.getAttribute(key);
+      if (en == null || (cur !== en && cur !== el.__trAttr?.[a])) { en = cur; el.setAttribute(key, en); }
+      const want = lang === 'ar' ? (trText(en) ?? en) : en;
+      el.__trAttr = Object.assign(el.__trAttr || {}, { [a]: want });
+      if (cur !== want) el.setAttribute(a, want);
+    });
+  }
+  function walk(root) {
+    if (!root) return;
+    if (root.nodeType === 3) { doText(root); return; }
+    if (root.nodeType !== 1 || skip(root)) return;
+    doAttrs(root);
+    const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+    let n; while ((n = tw.nextNode())) { if (n.nodeType === 3) doText(n); else if (!skip(n)) doAttrs(n); }
+  }
+  function restore(root) {
+    const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+    let n; while ((n = tw.nextNode())) {
+      if (n.nodeType === 3) { if (n.__en !== undefined && n.__tr !== undefined && n.nodeValue === n.__tr) n.nodeValue = n.__en; n.__tr = undefined; }
+      else ATTRS.forEach(a => { const en = n.getAttribute('data-en-' + a); if (en != null) n.setAttribute(a, en); });
+    }
+  }
+  let observing = false;
+  const mo = new MutationObserver(muts => {
+    if (lang !== 'ar') return;
+    for (const m of muts) {
+      if (m.type === 'childList') m.addedNodes.forEach(walk);
+      else if (m.type === 'characterData') doText(m.target);
+      else if (m.type === 'attributes' && ATTRS.includes(m.attributeName)) { const el = m.target; if (el.getAttribute(m.attributeName) !== (el.__trAttr || {})[m.attributeName]) doAttrs(el); }
+    }
+  });
+  function applyDir() {
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+  }
+  function start() {
+    applyDir();
+    if (!observing) { mo.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTRS }); observing = true; }
+    if (lang === 'ar') walk(document.body);
+  }
+  function set(l) {
+    lang = l === 'ar' ? 'ar' : 'en';
+    try { localStorage.setItem(LANG_KEY, lang); } catch (e) { /* ignore */ }
+    applyDir();
+    if (lang === 'ar') walk(document.body); else restore(document.body);
+  }
+  function t(s) { if (lang !== 'ar') return s; const r = trText(String(s)); return r == null ? s : r; }
+  return { get lang() { return lang; }, set, start, t, date, ev };
+})();
+
 (function () {
 'use strict';
 
@@ -779,11 +1123,18 @@ function isoDate(d) { const z = n => String(n).padStart(2, '0'); return d.getFul
 function parseIso(s) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ''); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; }
 function todayIso() { return isoDate(new Date()); }
 function nextFriday(from) { const d = new Date(from.getFullYear(), from.getMonth(), from.getDate()); d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7)); return d; }
-function fmtDay(s) { const d = parseIso(s); return d ? d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : s; }
-function fmtShort(s) { const d = parseIso(s); return d ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : s; }
+const LOC = () => (I18N.lang === 'ar' ? 'ar-u-ca-gregory-nu-latn' : 'en-GB');
+function fmtDay(s) { const d = parseIso(s); return d ? d.toLocaleDateString(LOC(), { weekday: 'short', day: 'numeric', month: 'short' }) : s; }
+function fmtShort(s) { const d = parseIso(s); return d ? d.toLocaleDateString(LOC(), { day: 'numeric', month: 'short' }) : s; }
+function fmtShortEn(s) { const d = parseIso(s); return d ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : s; }
 function ago(iso) {
   const t = Date.parse(iso || ''); if (!t) return '';
   const s = Math.max(0, (Date.now() - t) / 1000);
+  if (I18N.lang === 'ar') {
+    if (s < 60) return 'الآن'; if (s < 3600) return 'قبل ' + Math.round(s / 60) + ' دقيقة';
+    if (s < 86400) return 'قبل ' + Math.round(s / 3600) + ' ساعة'; if (s < 86400 * 14) return 'قبل ' + Math.round(s / 86400) + ' يوم';
+    return new Date(t).toLocaleDateString(LOC(), { day: 'numeric', month: 'short' });
+  }
   if (s < 60) return 'just now'; if (s < 3600) return Math.round(s / 60) + ' min ago';
   if (s < 86400) return Math.round(s / 3600) + ' h ago'; if (s < 86400 * 14) return Math.round(s / 86400) + ' days ago';
   return new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
@@ -940,7 +1291,7 @@ function withEntry(evId, date, rows, settingsObj) {
 }
 async function saveRoster() {
   const evId = state.event; const { w, rows } = rosterRows(evId);
-  await setHistory(evId, withEntry(evId, w.date, rows, w.settings), 'Saved the ' + EVENTS[evId].name + ' roster for ' + fmtShort(w.date));
+  await setHistory(evId, withEntry(evId, w.date, rows, w.settings), 'Saved the ' + EVENTS[evId].name + ' roster for ' + fmtShortEn(w.date));
   toast('Roster saved for ' + fmtShort(w.date));
 }
 // Battle is over: keep what was played as history, then make it the "last event" of the next battle.
@@ -950,7 +1301,7 @@ async function rollForward(evId) {
   const nd = nextDate(w.date);
   const nw = { date: nd, last: {}, gap: {}, ov: {}, settings: Object.assign({}, w.settings) };
   ms.forEach(m => { const a = r.assign[m.key]; nw.last[m.hk] = a.slot === 'X' ? (m.last || '') : a.slot; nw.gap[m.hk] = a.gap; if (m.ov === 'A' || m.ov === 'B') nw.ov[m.hk] = m.ov; });
-  await patchWork(evId, nw, 'Started the ' + EVENTS[evId].name + ' roster for ' + fmtShort(nd) + ' (the ' + fmtShort(w.date) + ' lineup is now the last event)', true);
+  await patchWork(evId, nw, 'Started the ' + EVENTS[evId].name + ' roster for ' + fmtShortEn(nd) + ' (the ' + fmtShortEn(w.date) + ' lineup is now the last event)', true);
 }
 
 // ================= shared storage (db) =================
@@ -1167,7 +1518,7 @@ function promptFor(kind, n) {
     '- "role": "main" if the player is listed as a starter, main or participant; "sub" if listed under substitutes or reserves; "" if the screen does not say.\n' +
     'Ignore headers, buttons, menus, the phone status bar, and rows cut off so much that the name cannot be read. List a player once even if they appear in two screenshots.\n\n' +
     (kind === 'members' ? '' : 'Battle scores, points or kills are not power: leave "power" empty for them.\n') +
-    'Reply with only JSON in this shape:\n{"screen": "one short sentence on what the screenshots show", "rows": [{"name": "IronFalcon", "power": "52.4M", "role": "main"}]}';
+    'Reply with only JSON in this shape' + (I18N.lang === 'ar' ? ' (write the "screen" sentence in Arabic; keep player names exactly as shown)' : '') + ':\n{"screen": "one short sentence on what the screenshots show", "rows": [{"name": "IronFalcon", "power": "52.4M", "role": "main"}]}';
 }
 function sampleErrorText(e) {
   const c = e && e.code;
@@ -1411,7 +1762,7 @@ function renderBanners() {
     b.push('<div class="banner"><p>Your member list is only on this device. Share it so other R4s see the same data.</p><button class="btn primary" type="button" id="btn-share">Share with R4s</button></div>');
   }
   if (!src.example && w.date < todayIso() && state.canWrite) {
-    b.push('<div class="banner"><p>The <b>' + esc(fmtDay(w.date)) + '</b> battle is over. Start the next roster: this lineup becomes the last event. Upload the battle results first if you want no-shows marked.</p><button class="btn primary" type="button" id="btn-roll">Start the ' + esc(fmtShort(nextDate(w.date))) + ' roster</button></div>');
+    b.push('<div class="banner"><p>' + esc('The ' + fmtDay(w.date) + ' battle is over. Start the next roster: this lineup becomes the last event. Upload the battle results first if you want no-shows marked.') + '</p><button class="btn primary" type="button" id="btn-roll">Start the ' + esc(fmtShort(nextDate(w.date))) + ' roster</button></div>');
   } else if (!src.example && w.date === todayIso()) {
     b.push('<div class="banner"><p><b>Battle day.</b> After the battle, upload the results screenshots (step 1, Battle results) to mark no-shows.</p></div>');
   }
@@ -1453,8 +1804,8 @@ function renderReview() {
   const rowsHtml = R.rows.map((r, i) => {
     const opts = ['<option value="-ignore"' + (r.target === '-ignore' ? ' selected' : '') + '>Ignore this row</option>', '<option value="+new"' + (r.target === '+new' ? ' selected' : '') + '>Add as new member</option>'];
     const candSet = new Set(r.cands);
-    if (r.cands.length) { opts.push('<optgroup label="Closest names">' + r.cands.map(k => byKey.get(k)).filter(Boolean).map(m => '<option value="' + esc(m.key) + '"' + (r.target === m.key ? ' selected' : '') + '>' + esc(m.name) + '</option>').join('') + '</optgroup>'); }
-    opts.push('<optgroup label="All members">' + members.filter(m => !candSet.has(m.key)).map(m => '<option value="' + esc(m.key) + '"' + (r.target === m.key ? ' selected' : '') + '>' + esc(m.name) + '</option>').join('') + '</optgroup>');
+    if (r.cands.length) { opts.push('<optgroup label="Closest names">' + r.cands.map(k => byKey.get(k)).filter(Boolean).map(m => '<option translate="no" value="' + esc(m.key) + '"' + (r.target === m.key ? ' selected' : '') + '>' + esc(m.name) + '</option>').join('') + '</optgroup>'); }
+    opts.push('<optgroup label="All members">' + members.filter(m => !candSet.has(m.key)).map(m => '<option translate="no" value="' + esc(m.key) + '"' + (r.target === m.key ? ' selected' : '') + '>' + esc(m.name) + '</option>').join('') + '</optgroup>');
     let badge;
     if (r.target === '-ignore') badge = '<span class="badge ignore">Ignored</span>';
     else if (r.target === '+new') badge = '<span class="badge new">New</span>';
@@ -1463,25 +1814,25 @@ function renderReview() {
     const cur = byKey.get(r.target);
     const powerCell = showPower ? '<td><input type="text" value="' + esc(r.power) + '" data-ri="' + i + '" data-rf="power" aria-label="Power read for ' + esc(r.name) + '">' + (cur && cur.power ? ' <span class="muted" style="font-size:12px">was ' + fmtPower(cur.power) + '</span>' : '') + '</td>' : '';
     const roleCell = isTeam ? '<td><select data-ri="' + i + '" data-rf="role" aria-label="Role for ' + esc(r.name) + '"><option value="main"' + (r.role !== 'sub' ? ' selected' : '') + '>Main</option><option value="sub"' + (r.role === 'sub' ? ' selected' : '') + '>Sub</option></select></td>' : '';
-    return '<tr><td>' + badge + '</td><td>' + esc(r.name) + '</td><td><select data-ri="' + i + '" data-rf="target" aria-label="Member for ' + esc(r.name) + '">' + opts.join('') + '</select></td>' + powerCell + roleCell + '</tr>';
+    return '<tr><td>' + badge + '</td><td translate="no">' + esc(r.name) + '</td><td><select data-ri="' + i + '" data-rf="target" aria-label="Member for ' + esc(r.name) + '">' + opts.join('') + '</select></td>' + powerCell + roleCell + '</tr>';
   }).join('');
   let optsHtml = '';
   if (R.kind === 'members') {
-    optsHtml += '<label class="check"><input type="checkbox" id="rv-remove"' + (R.removeMissing ? ' checked' : '') + '><span>Remove the <b>' + fx.missing.length + '</b> members who are not in these screenshots (they left the alliance). Leave unticked if you only uploaded part of the list.</span></label>';
+    optsHtml += '<label class="check"><input type="checkbox" id="rv-remove"' + (R.removeMissing ? ' checked' : '') + '><span>' + esc('Remove the ' + fx.missing.length + ' members who are not in these screenshots (they left the alliance). Leave unticked if you only uploaded part of the list.') + '</span></label>';
   } else {
     const bo = battleOptions(R.ev);
     optsHtml += '<label class="field" for="rv-battle"><span class="label">Which battle is this from?</span><select id="rv-battle">' + bo.map(o => '<option value="' + o.v + '"' + (o.v === R.battle ? ' selected' : '') + '>' + esc(o.label) + '</option>').join('') + '</select></label>';
     if (isTeam) optsHtml += '<label class="check"><input type="checkbox" id="rv-replace"' + (R.replaceTeam ? ' checked' : '') + '><span>Replace the whole Team ' + R.kind + ' list: anyone in Team ' + R.kind + ' who is not in these screenshots counts as sat out. Untick if you are adding more screenshots to a list you already uploaded.</span></label>';
     if (R.kind === 'results') {
-      optsHtml += '<p style="margin:0;font-size:14px"><b>Will be marked No-show (' + fx.noShows.length + '):</b> ' + (fx.noShows.length ? esc(fx.noShows.map(m => m.name).join(', ')) : 'nobody') + '</p>';
-      if (fx.subsFought.length) optsHtml += '<p style="margin:0;font-size:14px"><b>Subs who fought, counted as main (' + fx.subsFought.length + '):</b> ' + esc(fx.subsFought.map(m => m.name).join(', ')) + '</p>';
+      optsHtml += '<p style="margin:0;font-size:14px"><b>Will be marked No-show (' + fx.noShows.length + '):</b> ' + (fx.noShows.length ? '<span translate="no">' + esc(fx.noShows.map(m => m.name).join(', ')) + '</span>' : 'nobody') + '</p>';
+      if (fx.subsFought.length) optsHtml += '<p style="margin:0;font-size:14px"><b>Subs who fought, counted as main (' + fx.subsFought.length + '):</b> <span translate="no">' + esc(fx.subsFought.map(m => m.name).join(', ')) + '</span></p>';
       optsHtml += '<p class="muted" style="margin:0;font-size:13px">Make sure every page of the results is included, or players on missing pages get marked No-show.</p>';
     }
   }
   box.innerHTML = '<div class="review"><div class="review-h"><h3>Check before applying · ' + esc(KINDS[R.kind].title) + ' · ' + esc(EVENTS[R.ev].name) + '</h3>' +
     (R.screen ? '<span class="muted" style="font-size:13.5px">Gemini saw: ' + esc(R.screen) + '</span>' : '') +
     '<div class="counts"><span><b>' + R.rows.length + '</b> players read</span><span><b>' + fx.matched + '</b> matched</span>' + (fx.close ? '<span style="color:var(--accent)"><b>' + fx.close + '</b> close matches to check</span>' : '') + '<span><b>' + fx.added + '</b> new</span><span><b>' + fx.ignored + '</b> ignored</span></div>' +
-    '<span class="muted" style="font-size:13px">Names can be misread. Check rows marked <b>Check</b> and <b>New</b>, and pick the right member if needed.</span></div>' +
+    '<span class="muted" style="font-size:13px">Names can be misread. Check the rows marked Check or New, and pick the right member if needed.</span></div>' +
     '<div class="table-wrap" style="margin:0;border:0;border-radius:0"><table><thead><tr><th></th><th>Read from screenshot</th><th>Member</th>' + (showPower ? '<th>Power</th>' : '') + (isTeam ? '<th>Role</th>' : '') + '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div>' +
     '<div class="review-opts">' + optsHtml + '</div>' +
     '<div class="review-f"><span class="muted" style="font-size:13px">Applying updates the shared data for every R4.</span><span class="actions"><button class="btn ghost" type="button" id="rv-discard">Discard</button><button class="btn accent" type="button" id="rv-apply">Apply</button></span></div></div>';
@@ -1495,7 +1846,7 @@ function renderReview() {
 function rosterRow(m, i, a) {
   let tagCls = a.tag.toLowerCase().replace(/[^a-z]/g, '');
   if (a.tag === 'Waited 1' || a.tag === 'Spare') tagCls = '';
-  return '<li title="' + esc(a.reason) + '"><span class="n">' + (i + 1) + '</span><span class="nm">' + esc(m.name) + '</span><span class="pw">' + fmtPower(m.power) + '</span><span class="tag ' + tagCls + '">' + esc(a.tag) + '</span></li>';
+  return '<li title="' + esc(a.reason) + '"><span class="n">' + (i + 1) + '</span><span class="nm" translate="no">' + esc(m.name) + '</span><span class="pw">' + fmtPower(m.power) + '</span><span class="tag ' + tagCls + '">' + esc(a.tag) + '</span></li>';
 }
 function group(title, list, cap, assign) {
   let rows = list.map((m, i) => rosterRow(m, i, assign[m.key])).join('');
@@ -1517,7 +1868,7 @@ function renderRoster(r) {
   const nextUp = r.out.filter(m => r.assign[m.key].tag === 'Next').length;
   $('bench-title').textContent = 'Sitting out' + (nextUp ? ' · ' + nextUp + ' first in line next time' : '');
   $('bench-count').textContent = r.out.length + (r.unavailable.length ? ' + ' + r.unavailable.length + ' away' : '');
-  const chip = (m, cls) => { const a = r.assign[m.key]; const t = a.tag; const tagHtml = cls === 'unav' ? '' : '<span class="tag ' + (t === 'Next' ? 'next' : t === 'No-show' ? 'noshow' : '') + '">' + esc(t) + '</span>'; return '<span class="chip ' + (cls || '') + '" title="' + esc(a.reason) + '">' + esc(m.name) + ' <span class="pw">' + fmtPower(m.power) + '</span>' + tagHtml + '</span>'; };
+  const chip = (m, cls) => { const a = r.assign[m.key]; const t = a.tag; const tagHtml = cls === 'unav' ? '' : '<span class="tag ' + (t === 'Next' ? 'next' : t === 'No-show' ? 'noshow' : '') + '">' + esc(t) + '</span>'; return '<span class="chip ' + (cls || '') + '" title="' + esc(a.reason) + '"><span translate="no">' + esc(m.name) + '</span> <span class="pw">' + fmtPower(m.power) + '</span>' + tagHtml + '</span>'; };
   let bench = '';
   if (r.out.length) bench += '<div class="chips">' + r.out.map(m => chip(m)).join('') + '</div>';
   if (r.unavailable.length) bench += '<span class="label">Away</span><div class="chips">' + r.unavailable.map(m => chip(m, 'unav')).join('') + '</div>';
@@ -1562,7 +1913,7 @@ function renderLedger(r) {
     const a = r.assign[m.key];
     const sel = (opts, val, attr) => '<select ' + attr + dis + '>' + opts.map(([v, l]) => '<option value="' + v + '"' + (v === val ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>';
     const pips = showHist ? '<td><span class="pips">' + historyFor(m.key).map(p => '<i class="' + p.c + '" title="' + esc(p.t) + '"></i>').join('') + '</span></td>' : '';
-    return '<tr><td class="r num muted">' + rank.get(m.key) + '</td><td>' + esc(m.name) + '</td><td class="r num">' + fmtPower(m.power) + '</td>' +
+    return '<tr><td class="r num muted">' + rank.get(m.key) + '</td><td translate="no">' + esc(m.name) + '</td><td class="r num">' + fmtPower(m.power) + '</td>' +
       '<td>' + sel(STATUS_OPTS, m.last, 'data-h="' + m.hk + '" data-n="' + esc(m.name) + '" data-act="last" aria-label="Last event for ' + esc(m.name) + '"') + '</td>' +
       '<td class="r"><input type="number" min="0" max="99" value="' + gapOf(m) + '" data-h="' + m.hk + '" data-n="' + esc(m.name) + '" data-act="gap" aria-label="Events waited by ' + esc(m.name) + '"' + dis + '></td>' + pips +
       '<td>' + sel(OV_OPTS, m.ov, 'data-h="' + m.hk + '" data-n="' + esc(m.name) + '" data-act="ov" aria-label="Officer setting for ' + esc(m.name) + '"') + '</td>' +
@@ -1592,24 +1943,35 @@ function renderLog() {
   el.innerHTML = '';
   items.forEach(x => {
     const li = document.createElement('li');
-    const av = document.createElement('span'); av.className = 'av'; av.textContent = initials(x.by || '?'); av.style.background = x.by ? 'hsl(' + hueOf(x.by) + ' 45% 45%)' : 'var(--muted)';
+    const av = document.createElement('span'); av.className = 'av'; av.setAttribute('translate', 'no'); av.textContent = initials(x.by || '?'); av.style.background = x.by ? 'hsl(' + hueOf(x.by) + ' 45% 45%)' : 'var(--muted)';
     const d = document.createElement('div');
-    const who = document.createElement('b'); who.textContent = x.by ? (x.by === me ? 'You' : x.by) : 'An R4';
-    const txt = document.createTextNode(' · ' + String(x.text || '').replace(/^./, c => c.toLowerCase()) + ' ');
-    const t = document.createElement('span'); t.className = 't'; t.textContent = (x.ev && EVENTS[x.ev] ? EVENTS[x.ev].name + ' · ' : '') + ago(x.at);
-    d.append(who, txt, document.createElement('br'), t); li.append(av, d); el.append(li);
+    const who = document.createElement('b');
+    if (x.by && x.by !== me) { who.textContent = x.by; who.setAttribute('translate', 'no'); } else who.textContent = x.by ? 'You' : 'An R4';
+    const txt = document.createElement('span'); txt.textContent = String(x.text || '');
+    const t = document.createElement('span'); t.className = 't';
+    if (x.ev && EVENTS[x.ev]) { const e = document.createElement('span'); e.textContent = EVENTS[x.ev].name; t.append(e, document.createTextNode(' · ')); }
+    const when = document.createElement('span'); when.textContent = ago(x.at); t.append(when);
+    d.append(who, document.createTextNode(' · '), txt, document.createElement('br'), t); li.append(av, d); el.append(li);
   });
 }
 
 // ================= outputs =================
+function rosterLabels() {
+  return I18N.lang === 'ar'
+    ? { AM: 'الفريق A · أساسي', AS: 'الفريق A · احتياط', BM: 'الفريق B · أساسي', BS: 'الفريق B · احتياط', OUT: 'خارج المشاركة', note: 'الاحتياط: كونوا جاهزين وادخلوا فور مغادرة أي لاعب أساسي ساحة المعركة.', ev: n => I18N.ev(n), sep: '، ' }
+    : { AM: 'TEAM A · MAIN', AS: 'TEAM A · SUBS', BM: 'TEAM B · MAIN', BS: 'TEAM B · SUBS', OUT: 'SITTING OUT', note: 'Subs: stay ready and join as soon as a main leaves the battlefield.', ev: n => n.toUpperCase(), sep: ', ' };
+}
+function rosterText(dateIso, groups, outNames, withNote) {
+  const L = rosterLabels(); const lines = ['ONE1 · ' + L.ev(EVENTS[state.event].name) + ' · ' + fmtDay(dateIso), ''];
+  ['AM', 'AS', 'BM', 'BS'].forEach(k => { const l = groups[k] || []; if (!l.length && (k === 'BM' || k === 'BS')) return; lines.push(L[k] + ' (' + l.length + ')'); l.forEach((n, i) => lines.push((i + 1) + '. ' + n)); lines.push(''); });
+  if (outNames.length) { lines.push(L.OUT + ' (' + outNames.length + '): ' + outNames.join(L.sep)); lines.push(''); }
+  if (withNote) lines.push(L.note);
+  return lines.join('\n').trim();
+}
 function mailText(r) {
-  const E = EVENTS[state.event]; const lines = ['ONE1 · ' + E.name.toUpperCase() + ' · ' + fmtDay(curWork().date), ''];
-  const block = (title, list) => { lines.push(title + ' (' + list.length + ')'); list.forEach((m, i) => lines.push((i + 1) + '. ' + m.name)); lines.push(''); };
-  block('TEAM A · MAIN', r.teams.AM); block('TEAM A · SUBS', r.teams.AS);
-  if (settings().teamB) { block('TEAM B · MAIN', r.teams.BM); block('TEAM B · SUBS', r.teams.BS); }
-  if (r.out.length) { lines.push('SITTING OUT (' + r.out.length + '): ' + r.out.map(m => m.name).join(', ')); lines.push(''); }
-  lines.push('Subs: stay ready and join as soon as a main leaves the battlefield.');
-  return lines.join('\n');
+  const g = {}; ['AM', 'AS', 'BM', 'BS'].forEach(k => { g[k] = r.teams[k].map(m => m.name); });
+  if (!settings().teamB) { g.BM = []; g.BS = []; }
+  return rosterText(curWork().date, g, r.out.map(m => m.name), true);
 }
 async function copyText(text, label) {
   try { await navigator.clipboard.writeText(text); toast(label + ' copied'); $('mail-fallback').classList.add('hidden'); }
@@ -1618,19 +1980,16 @@ async function copyText(text, label) {
 function viewSaved(date) {
   const h = (S().saved[state.event] || []).find(x => x.date === date); const box = $('history-view');
   if (!h) { box.classList.add('hidden'); return; }
-  const by = sl => h.rows.filter(x => x.s === sl).sort((a, b) => b.p - a.p);
-  const lines = ['ONE1 · ' + EVENTS[state.event].name.toUpperCase() + ' · ' + fmtDay(h.date), ''];
-  [['TEAM A · MAIN', 'AM'], ['TEAM A · SUBS', 'AS'], ['TEAM B · MAIN', 'BM'], ['TEAM B · SUBS', 'BS']].forEach(([t, sl]) => { const l = by(sl); if (!l.length) return; lines.push(t + ' (' + l.length + ')'); l.forEach((x, i) => lines.push((i + 1) + '. ' + x.n)); lines.push(''); });
-  const out = by('OUT'); if (out.length) lines.push('SITTING OUT (' + out.length + '): ' + out.map(x => x.n).join(', '));
-  const text = lines.join('\n');
-  box.innerHTML = '<div class="actions" style="margin-top:12px"><button class="btn primary" type="button" id="hv-copy">Copy this roster</button><button class="btn ghost" type="button" id="hv-close">Close</button></div><pre class="mail">' + esc(text) + '</pre>';
+  const by = sl => h.rows.filter(x => x.s === sl).sort((a, b) => b.p - a.p).map(x => x.n);
+  const text = rosterText(h.date, { AM: by('AM'), AS: by('AS'), BM: by('BM'), BS: by('BS') }, by('OUT'), false);
+  box.innerHTML = '<div class="actions" style="margin-top:12px"><button class="btn primary" type="button" id="hv-copy">Copy this roster</button><button class="btn ghost" type="button" id="hv-close">Close</button></div><pre class="mail" translate="no" dir="auto">' + esc(text) + '</pre>';
   box.classList.remove('hidden');
   $('hv-copy').onclick = () => copyText(text, 'Roster'); $('hv-close').onclick = () => box.classList.add('hidden');
 }
 async function deleteSaved(date, btn) {
   if (btn.dataset.confirm !== '1') { btn.dataset.confirm = '1'; btn.textContent = 'Confirm delete'; setTimeout(() => { if (btn.isConnected) { btn.dataset.confirm = ''; btn.textContent = 'Delete'; } }, 4000); return; }
   const evId = state.event;
-  await setHistory(evId, (S().saved[evId] || []).filter(h => h.date !== date), 'Deleted the ' + EVENTS[evId].name + ' roster for ' + fmtShort(date));
+  await setHistory(evId, (S().saved[evId] || []).filter(h => h.date !== date), 'Deleted the ' + EVENTS[evId].name + ' roster for ' + fmtShortEn(date));
 }
 
 // ================= example =================
@@ -1666,7 +2025,7 @@ function clearShots() { state.shots.files.forEach(f => URL.revokeObjectURL(f.url
 
 $('ev-ds').onclick = () => { state.event = 'ds'; $('history-view').classList.add('hidden'); render(); };
 $('ev-cs').onclick = () => { state.event = 'cs'; $('history-view').classList.add('hidden'); render(); };
-$('battle-date').addEventListener('change', e => { if (e.target.value) patchWork(state.event, { date: e.target.value }, 'Set the ' + EVENTS[state.event].name + ' battle date to ' + fmtShort(e.target.value)); });
+$('battle-date').addEventListener('change', e => { if (e.target.value) patchWork(state.event, { date: e.target.value }, 'Set the ' + EVENTS[state.event].name + ' battle date to ' + fmtShortEn(e.target.value)); });
 let settingsTimer = null, pendingSettings = {};
 function setS(k, v) {
   const evId = state.event; pendingSettings[k] = v;
@@ -1833,7 +2192,14 @@ $('btn-disconnect').onclick = e => {
   location.reload();
 };
 
+// ================= language =================
+function renderLang() { $('lang-en').setAttribute('aria-pressed', String(I18N.lang === 'en')); $('lang-ar').setAttribute('aria-pressed', String(I18N.lang === 'ar')); }
+function switchLang(l) { I18N.set(l); renderLang(); $('history-view').classList.add('hidden'); render(); }
+$('lang-en').onclick = () => switchLang('en');
+$('lang-ar').onclick = () => switchLang('ar');
+
 // ================= boot =================
+I18N.start(); renderLang();
 initSample(); samplesChecked = true;
 const fromHash = readJoinFromHash();
 if (fromHash) { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* ignore */ } }
