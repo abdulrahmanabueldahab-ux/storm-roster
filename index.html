@@ -1687,7 +1687,11 @@ function pasteRows(text) {
   const out = [];
   lines.forEach(line => {
     let cells = line.includes('\t') ? line.split('\t') : line.includes(',') && !/\d,\d{3}/.test(line) ? line.split(',') : null;
-    if (!cells) { const m = /^(.*?)[\s:;-]+([0-9][0-9.,]*\s*[kmbKMB]?)\s*$/.exec(line); cells = m ? [m[1], m[2]] : [line]; }
+    if (!cells) {
+      // a trailing number is power only if it looks like one (52.4M, 52,431,220, 14600507); names like "ALI 92" or "B N 1 0 0" stay whole
+      const m = /^(.*?)[\s:;-]+([0-9][0-9.,]*\s*[kmbKMB]?)\s*$/.exec(line);
+      cells = (m && (/[kmb]\s*$/i.test(m[2]) || /[.,]/.test(m[2]) || m[2].replace(/\D/g, '').length >= 5)) ? [m[1], m[2]] : [line];
+    }
     cells = cells.map(c => c.trim());
     const name = cells[0]; if (!name || /^(name|member|player)s?$/i.test(name)) return;
     let power = '', role = '';
