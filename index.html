@@ -1,0 +1,1837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ONE1 Storm Roster</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Saira+Stencil+One&display=swap" rel="stylesheet">
+<style>
+
+/* Layout idea: a field-ops board. Load → rules → two team boards side by side → sit-out bench → full member ledger. */
+:root {
+  --bg: #E7EAE4;
+  --surface: #FBFCFA;
+  --surface-2: #F0F2EE;
+  --ink: #1B211D;
+  --muted: #5A665D;
+  --line: #D2D8CF;
+  --accent: #A86F12;          /* Desert Storm: sand amber */
+  --accent-soft: #F3E6CC;
+  --team-a: #285A8E;          /* steel blue */
+  --team-a-soft: #DDE7F2;
+  --team-b: #56702A;          /* olive */
+  --team-b-soft: #E3EBD5;
+  --bad: #B3261E;
+  --bad-soft: #F6DEDC;
+  --font-display: "Saira Stencil One", "Impact", "Arial Narrow", sans-serif;
+  --font-label: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --font-body: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --radius: 6px;
+  color-scheme: light;
+}
+:root[data-event="cs"] { --accent: #A23B24; --accent-soft: #F4DDD5; } /* Canyon Storm: canyon rust */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111512; --surface: #191E1A; --surface-2: #212722; --ink: #E3E7E1; --muted: #99A39B; --line: #2E3530;
+    --accent: #E2A646; --accent-soft: #3A2E17; --team-a: #7FAEE0; --team-a-soft: #1C2A3A; --team-b: #A8C76C; --team-b-soft: #232E17;
+    --bad: #F08A80; --bad-soft: #3B1D1A; color-scheme: dark;
+  }
+  :root:not([data-theme="light"])[data-event="cs"] { --accent: #EC8264; --accent-soft: #3D2119; }
+}
+:root[data-theme="dark"] {
+  --bg: #111512; --surface: #191E1A; --surface-2: #212722; --ink: #E3E7E1; --muted: #99A39B; --line: #2E3530;
+  --accent: #E2A646; --accent-soft: #3A2E17; --team-a: #7FAEE0; --team-a-soft: #1C2A3A; --team-b: #A8C76C; --team-b-soft: #232E17;
+  --bad: #F08A80; --bad-soft: #3B1D1A; color-scheme: dark;
+}
+:root[data-theme="dark"][data-event="cs"] { --accent: #EC8264; --accent-soft: #3D2119; }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 20px 20px 64px; display: grid; gap: 18px; }
+.wrap > *, .panel-b, .boards > *, .loaders > *, .rules > * { min-width: 0; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.num { font-variant-numeric: tabular-nums; }
+.label { font-family: var(--font-label); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; font-size: 12.5px; color: var(--muted); }
+.muted { color: var(--muted); }
+.hidden { display: none !important; }
+
+/* Header */
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px 24px; border-bottom: 3px solid var(--ink); padding-bottom: 14px; }
+.top h1 { font-family: var(--font-display); font-weight: 400; font-size: clamp(30px, 4.4vw, 46px); line-height: 1; letter-spacing: .01em; }
+.top h1 span { color: var(--accent); }
+.top .sub { margin-top: 6px; color: var(--muted); max-width: 62ch; }
+.event-ctl { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.seg { display: inline-flex; flex-wrap: wrap; max-width: 100%; border: 1.5px solid var(--ink); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: transparent; padding: 8px 14px; cursor: pointer; font-family: var(--font-label); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; font-size: 14px; }
+.seg button + button { border-left: 1.5px solid var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+.seg.small button { padding: 6px 10px; font-size: 13px; }
+.field { display: grid; gap: 4px; }
+.field input[type="date"] { border: 1.5px solid var(--ink); border-radius: var(--radius); padding: 6px 8px; background: var(--surface); min-height: 38px; }
+
+.facts { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13.5px; color: var(--muted); padding: 2px 0; }
+.facts b { color: var(--ink); font-weight: 600; }
+.facts .dot { width: 8px; height: 8px; background: var(--accent); display: inline-block; margin-right: 6px; border-radius: 1px; transform: translateY(-1px); }
+
+/* Banners */
+.banner { border-left: 4px solid var(--accent); background: var(--accent-soft); padding: 10px 14px; border-radius: 0 var(--radius) var(--radius) 0; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
+.banner.warn { border-left-color: var(--bad); background: var(--bad-soft); }
+.banner p { margin: 0; }
+
+/* Panels */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.panel-h { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 14px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.panel-h h2 { font-family: var(--font-label); text-transform: uppercase; letter-spacing: .06em; font-size: 17px; font-weight: 700; }
+.panel-h h2 .step { color: var(--accent); margin-right: 8px; }
+.panel-b { padding: 14px 16px; }
+
+/* Step 1 */
+.loaders { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 14px; }
+.drop { border: 1.5px dashed var(--line); border-radius: var(--radius); padding: 14px; display: grid; gap: 10px; background: var(--surface-2); transition: border-color .15s, background .15s; }
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop h3 { font-size: 16px; font-weight: 700; }
+.drop p { margin: 0; font-size: 13.5px; color: var(--muted); }
+.drop .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.status-line { font-size: 13.5px; display: flex; gap: 8px; align-items: baseline; }
+.status-line .pip { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; transform: translateY(1px); }
+.status-line.ok .pip { background: var(--team-b); }
+.status-line.err .pip { background: var(--bad); }
+.status-line.err { color: var(--bad); }
+.btn { display: inline-flex; align-items: center; gap: 6px; border: 1.5px solid var(--ink); background: var(--surface); border-radius: var(--radius); padding: 7px 12px; cursor: pointer; font-weight: 600; font-size: 14px; min-height: 36px; }
+.btn:hover { background: var(--surface-2); }
+.btn.primary { background: var(--ink); color: var(--surface); }
+.btn.primary:hover { opacity: .9; }
+.btn.accent { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.ghost { border-color: transparent; background: transparent; text-decoration: underline; text-underline-offset: 3px; padding-left: 4px; padding-right: 4px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.danger { border-color: var(--bad); color: var(--bad); }
+textarea.paste { width: 100%; min-height: 120px; border: 1.5px solid var(--line); border-radius: var(--radius); padding: 8px 10px; background: var(--surface); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; resize: vertical; }
+.file-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+/* Step 2 */
+.rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 16px 20px; }
+.rule { display: grid; gap: 6px; align-content: start; }
+.rule p { margin: 0; font-size: 13px; color: var(--muted); }
+.stepper { display: inline-flex; align-items: center; border: 1.5px solid var(--ink); border-radius: var(--radius); overflow: hidden; width: max-content; background: var(--surface); }
+.stepper button { border: 0; background: transparent; width: 36px; height: 36px; cursor: pointer; font-size: 18px; font-weight: 700; }
+.stepper button:hover { background: var(--surface-2); }
+.stepper input { width: 46px; text-align: center; border: 0; border-left: 1.5px solid var(--ink); border-right: 1.5px solid var(--ink); height: 36px; background: transparent; font-weight: 700; font-variant-numeric: tabular-nums; -moz-appearance: textfield; }
+.stepper input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.how { margin: 14px 0 0; padding: 12px 16px 12px 34px; background: var(--surface-2); border-radius: var(--radius); font-size: 13.5px; display: grid; gap: 3px; }
+.how li::marker { font-family: var(--font-label); font-weight: 700; color: var(--accent); }
+
+/* Step 3 */
+.summary { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: baseline; }
+.summary .big { font-family: var(--font-label); font-weight: 700; font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
+.summary .item { display: flex; gap: 6px; align-items: baseline; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.boards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(330px, 100%), 1fr)); gap: 14px; }
+.board { border: 1px solid var(--line); border-top: 5px solid var(--tc); border-radius: var(--radius); background: var(--surface); }
+.board.a { --tc: var(--team-a); --tcs: var(--team-a-soft); }
+.board.b { --tc: var(--team-b); --tcs: var(--team-b-soft); }
+.board-h { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 12px 14px 8px; flex-wrap: wrap; }
+.board-h h3 { font-family: var(--font-display); font-weight: 400; font-size: 26px; color: var(--tc); line-height: 1; }
+.board-h .meta { font-size: 13px; color: var(--muted); text-align: right; }
+.board-h .meta b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.group-h { display: flex; justify-content: space-between; padding: 6px 14px; background: var(--tcs); font-family: var(--font-label); text-transform: uppercase; letter-spacing: .07em; font-weight: 700; font-size: 13px; }
+.group-h .cnt { font-variant-numeric: tabular-nums; }
+.group-h.full .cnt::after { content: " ✓"; }
+ol.roster { list-style: none; margin: 0; padding: 4px 0 8px; }
+ol.roster li { display: grid; grid-template-columns: 26px 1fr auto auto; gap: 8px; align-items: center; padding: 3px 14px; font-size: 14px; }
+ol.roster li:nth-child(even) { background: var(--surface-2); }
+ol.roster .n { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12.5px; text-align: right; }
+ol.roster .nm { overflow-wrap: anywhere; font-weight: 500; }
+ol.roster .pw { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
+ol.roster li.empty { grid-template-columns: 26px 1fr; color: var(--muted); font-style: italic; }
+.tag { font-family: var(--font-label); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; padding: 1px 6px; border-radius: 3px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; background: var(--surface); }
+.tag.core { border-color: var(--accent); color: var(--accent); }
+.tag.locked { border-color: var(--ink); color: var(--ink); }
+.tag.waited, .tag.wassub { border-color: var(--tc, var(--team-a)); color: var(--tc, var(--team-a)); }
+.tag.noshow { border-color: var(--bad); color: var(--bad); }
+.tag.next { border-color: var(--accent); color: var(--accent); }
+.bench { display: grid; gap: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 3px 4px 3px 10px; font-size: 13.5px; background: var(--surface); }
+.chip .pw { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.chip.unav { border-style: dashed; padding-right: 10px; }
+
+/* Ledger */
+.ledger-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.search { border: 1.5px solid var(--line); border-radius: var(--radius); padding: 7px 10px; min-width: 220px; background: var(--surface); }
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); margin-top: 12px; }
+table { border-collapse: collapse; width: 100%; min-width: 880px; font-size: 14px; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { font-family: var(--font-label); text-transform: uppercase; letter-spacing: .06em; font-size: 12.5px; color: var(--muted); font-weight: 600; background: var(--surface-2); position: sticky; top: 0; white-space: nowrap; }
+td.r, th.r { text-align: right; }
+tbody tr:hover { background: var(--surface-2); }
+td select, td input[type="number"] { border: 1px solid var(--line); border-radius: 4px; padding: 3px 6px; background: var(--surface); font-size: 13.5px; }
+td input[type="number"] { width: 58px; font-variant-numeric: tabular-nums; }
+.pill { display: inline-block; font-family: var(--font-label); font-weight: 700; font-size: 12.5px; text-transform: uppercase; letter-spacing: .05em; padding: 2px 8px; border-radius: 3px; white-space: nowrap; }
+.pill.AM { background: var(--team-a); color: var(--surface); }
+.pill.AS { border: 1.5px solid var(--team-a); color: var(--team-a); }
+.pill.BM { background: var(--team-b); color: var(--surface); }
+.pill.BS { border: 1.5px solid var(--team-b); color: var(--team-b); }
+.pill.OUT { background: var(--surface-2); color: var(--muted); }
+.pill.X { border: 1.5px dashed var(--muted); color: var(--muted); }
+.why { font-size: 13px; color: var(--muted); }
+.pips { display: inline-flex; gap: 3px; }
+.pips i { width: 12px; height: 12px; border-radius: 2px; display: inline-block; background: var(--surface-2); border: 1px solid var(--line); }
+.pips i.M { background: var(--ink); border-color: var(--ink); }
+.pips i.S { border: 2px solid var(--ink); background: transparent; }
+.pips i.X { border: 1px dashed var(--muted); }
+.pips i.NS { background: var(--bad); border-color: var(--bad); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--muted); align-items: center; }
+.legend .pips { margin-right: 4px; transform: translateY(2px); }
+
+/* History */
+.hist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.hist li { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; justify-content: space-between; padding: 8px 10px; background: var(--surface-2); border-radius: var(--radius); }
+.hist .when { font-weight: 600; }
+pre.mail { white-space: pre-wrap; background: var(--surface-2); border-radius: var(--radius); padding: 12px; font-size: 13px; max-height: 360px; overflow: auto; margin: 10px 0 0; }
+
+.toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--ink); color: var(--surface); padding: 10px 16px; border-radius: var(--radius); font-weight: 600; font-size: 14px; z-index: 50; max-width: calc(100% - 32px); box-shadow: 0 6px 20px rgba(0,0,0,.18); }
+@media (max-width: 520px) {
+  .wrap { padding: 14px 16px 48px; }
+  .board-h .meta { text-align: left; }
+  .search { min-width: 0; width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* ---- v2 additions ---- */
+.bench > *, #review, .review, .cols2 > * { min-width: 0; }
+.sync { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 13.5px; color: var(--muted); }
+.sync .led { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+.sync.shared .led { background: var(--team-b); box-shadow: 0 0 0 3px var(--team-b-soft); }
+.sync.ro .led { background: var(--accent); }
+.kinds { display: flex; flex-wrap: wrap; gap: 8px; }
+.kind { border: 1.5px solid var(--line); background: var(--surface); border-radius: var(--radius); padding: 8px 12px; cursor: pointer; text-align: left; display: grid; gap: 1px; min-width: 150px; }
+.kind b { font-family: var(--font-label); text-transform: uppercase; letter-spacing: .06em; font-size: 14px; }
+.kind span { font-size: 12.5px; color: var(--muted); }
+.kind[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); background: var(--surface-2); }
+.shotzone { border: 2px dashed var(--line); border-radius: var(--radius); padding: 18px; display: grid; gap: 12px; justify-items: start; background: var(--surface-2); transition: border-color .15s, background .15s; }
+.shotzone.over { border-color: var(--accent); background: var(--accent-soft); }
+.shotzone p { margin: 0; color: var(--muted); font-size: 13.5px; max-width: 70ch; }
+.thumbs { display: flex; flex-wrap: wrap; gap: 8px; }
+.thumb { position: relative; width: 72px; height: 128px; border-radius: 4px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb button { position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; border-radius: 50%; border: 0; background: rgba(0,0,0,.65); color: #fff; cursor: pointer; font-size: 14px; line-height: 22px; padding: 0; }
+.progress { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.spinner { width: 16px; height: 16px; border: 2.5px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.review { border: 1.5px solid var(--ink); border-radius: var(--radius); background: var(--surface); }
+.review-h { padding: 12px 14px; border-bottom: 1px solid var(--line); display: grid; gap: 6px; }
+.review-h h3 { font-family: var(--font-label); text-transform: uppercase; letter-spacing: .06em; font-size: 16px; }
+.counts { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13.5px; }
+.counts b { font-variant-numeric: tabular-nums; }
+.review table { min-width: 640px; }
+.review td input[type="text"] { border: 1px solid var(--line); border-radius: 4px; padding: 3px 6px; width: 96px; background: var(--surface); font-variant-numeric: tabular-nums; }
+.review td select { max-width: 240px; }
+.badge { font-family: var(--font-label); font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
+.badge.exact { color: var(--muted); border: 1px solid var(--line); }
+.badge.close { background: var(--accent); color: #fff; }
+.badge.new { border: 1.5px solid var(--team-a); color: var(--team-a); }
+.badge.ignore { color: var(--muted); text-decoration: line-through; }
+.review-opts { padding: 12px 14px; display: grid; gap: 10px; border-top: 1px solid var(--line); }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
+.check input { margin-top: 3px; }
+.review-f { padding: 12px 14px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.lines { display: grid; gap: 4px; }
+.cols2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); gap: 18px; }
+.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.log li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; align-items: start; }
+.log img { width: 22px; height: 22px; border-radius: 50%; }
+.log .t { color: var(--muted); font-size: 12.5px; }
+
+.log .av { width: 22px; height: 22px; border-radius: 50%; color: #fff; font-size: 10px; font-weight: 700; display: grid; place-items: center; font-family: var(--font-label); }
+.row-input { display: flex; gap: 8px; align-items: center; }
+.row-input input { flex: 1; min-width: 0; }
+.small { font-size: 13px; margin: 0; }
+#gate .drop { align-content: start; }
+#gate .drop input { width: 100%; }
+#gate textarea { min-height: 150px; }
+details.alt summary { cursor: pointer; font-size: 13.5px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; width: max-content; }
+details.alt[open] summary { margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <h1>ONE1 Storm <span>Roster</span></h1>
+      <p class="sub">Picks ONE1's Team A and Team B for Desert Storm and Canyon Storm. Members who have waited longest play next, and 1st team power decides who goes where.</p>
+      <div class="sync" id="sync"><span class="led"></span><span id="sync-text">Starting…</span></div>
+    </div>
+    <div class="event-ctl">
+      <div class="field">
+        <span class="label" id="ev-label">Event</span>
+        <div class="seg" role="group" aria-labelledby="ev-label">
+          <button type="button" id="ev-ds" aria-pressed="true">Desert Storm</button>
+          <button type="button" id="ev-cs" aria-pressed="false">Canyon Storm</button>
+        </div>
+      </div>
+      <label class="field" for="battle-date">
+        <span class="label">Battle date</span>
+        <input type="date" id="battle-date">
+      </label>
+    </div>
+  </header>
+
+  <div class="facts" id="facts"></div>
+  <div id="banners" class="bench"></div>
+
+  <!-- GATE -->
+  <section class="panel hidden" id="gate" aria-labelledby="g1">
+    <div class="panel-h"><h2 id="g1"><span class="step">00</span>Connect to your alliance</h2></div>
+    <div class="panel-b bench">
+      <div class="status-line err hidden" id="gate-error"><span class="pip"></span><span></span></div>
+      <div class="loaders">
+        <div class="drop">
+          <h3>R4 with a link</h3>
+          <p>Open the link your alliance leader sent you, on this phone or computer. It connects you straight away, with no login.</p>
+        </div>
+        <div class="drop">
+          <h3>Leader: first-time setup</h3>
+          <p id="gate-setup-text">Paste the Firebase web app config from setup step 1 (the block with apiKey and projectId). This creates a private space for your alliance and gives you the link for your R4s.</p>
+          <label class="label" for="gate-name">Your name in game</label>
+          <input id="gate-name" class="search" maxlength="40" placeholder="Shown to other R4s in Recent changes">
+          <label class="label" for="ta-config">Firebase config</label>
+          <textarea class="paste" id="ta-config" placeholder="const firebaseConfig = {&#10;  apiKey: &quot;AIza...&quot;,&#10;  authDomain: &quot;your-project.firebaseapp.com&quot;,&#10;  projectId: &quot;your-project&quot;,&#10;  appId: &quot;1:123:web:abc&quot;&#10;};"></textarea>
+          <div class="row"><button class="btn accent" type="button" id="btn-create">Create alliance space</button></div>
+        </div>
+      </div>
+      <p class="muted small">Just looking? <button class="btn ghost" type="button" id="btn-try">Try it with example data</button></p>
+    </div>
+  </section>
+
+  <!-- STEP 1 -->
+  <section class="panel app-only" aria-labelledby="s1">
+    <div class="panel-h">
+      <h2 id="s1"><span class="step">01</span>Update from screenshots</h2>
+      <button class="btn ghost" type="button" id="btn-example">Show example alliance</button>
+    </div>
+    <div class="panel-b bench">
+      <div class="lines">
+        <div class="status-line" id="st-members"><span class="pip"></span><span></span></div>
+        <div class="status-line" id="st-last"><span class="pip"></span><span></span></div>
+      </div>
+      <div id="shots-ui" class="bench">
+        <span class="label" id="kind-label">What do the screenshots show?</span>
+        <div class="kinds" role="group" aria-labelledby="kind-label" id="kinds"></div>
+        <div class="shotzone" id="shotzone">
+          <p id="kind-help"></p>
+          <div class="thumbs" id="thumbs"></div>
+          <div class="actions" id="shot-actions">
+            <label class="btn primary" for="file-shots">Choose screenshots</label>
+            <input class="file-input" type="file" id="file-shots" accept="image/png,image/jpeg,image/webp" multiple>
+            <button class="btn accent hidden" type="button" id="btn-read">Read screenshots</button>
+            <button class="btn ghost hidden" type="button" id="btn-clear-shots">Remove all</button>
+          </div>
+          <div class="progress hidden" id="progress"><span class="spinner"></span><span id="progress-text"></span><button class="btn" type="button" id="btn-stop">Stop</button></div>
+          <div class="status-line err hidden" id="shot-error"><span class="pip"></span><span></span></div>
+        </div>
+        <div id="review"></div>
+        <details class="alt" id="paste-alt">
+          <summary>No screenshots? Type or paste names instead</summary>
+          <div class="bench">
+            <label class="label" for="ta-paste">One player per line: name, then power (or role for team lists)</label>
+            <textarea class="paste" id="ta-paste" placeholder="IronFalcon  52.4M&#10;SandViper  48.9M&#10;DustRunner  31.2M"></textarea>
+            <div class="actions"><button class="btn primary" type="button" id="btn-paste">Check these names</button></div>
+          </div>
+        </details>
+      </div>
+      <p class="muted hidden" id="ro-note" style="margin:0">You can view this page but not change it. Ask the owner to give you edit access.</p>
+    </div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section class="panel app-only" aria-labelledby="s2">
+    <div class="panel-h"><h2 id="s2"><span class="step">02</span>Set the rules</h2><span class="muted" style="font-size:13px" id="rules-for"></span></div>
+    <div class="panel-b">
+      <div class="rules">
+        <div class="rule">
+          <span class="label" id="core-label">Core players</span>
+          <div class="stepper" role="group" aria-labelledby="core-label">
+            <button type="button" id="core-minus" aria-label="Fewer core players">−</button>
+            <input type="number" id="core" min="0" max="20" value="0" aria-labelledby="core-label">
+            <button type="button" id="core-plus" aria-label="More core players">+</button>
+          </div>
+          <p>Top-power members who play main in Team A every time. 0 means everyone rotates.</p>
+        </div>
+        <div class="rule">
+          <span class="label" id="split-label">Team split</span>
+          <div class="seg small" role="group" aria-labelledby="split-label">
+            <button type="button" id="split-tiered" aria-pressed="true">Strongest in A</button>
+            <button type="button" id="split-balanced" aria-pressed="false">Balanced</button>
+          </div>
+          <p id="split-help"></p>
+        </div>
+        <div class="rule">
+          <span class="label" id="teams-label">Teams</span>
+          <div class="seg small" role="group" aria-labelledby="teams-label">
+            <button type="button" id="teams-ab" aria-pressed="true">A + B</button>
+            <button type="button" id="teams-a" aria-pressed="false">A only</button>
+          </div>
+          <p>A + B registers 60 members (40 main, 20 subs). A only registers 30.</p>
+        </div>
+        <div class="rule">
+          <span class="label" id="ns-label">No-show penalty</span>
+          <div class="seg small" role="group" aria-labelledby="ns-label">
+            <button type="button" id="ns-on" aria-pressed="true">On</button>
+            <button type="button" id="ns-off" aria-pressed="false">Off</button>
+          </div>
+          <p>Members marked No-show last time go to the back of the line for one event.</p>
+        </div>
+      </div>
+      <ol class="how">
+        <li>Members who have waited the most events without a main slot go first.</li>
+        <li>When the wait is equal, last time's subs go first, then higher 1st team power.</li>
+        <li>The first 40 in line play main, the next 20 are subs, the rest sit out. Power then decides Team A or Team B.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- STEP 3 -->
+  <section class="panel app-only" aria-labelledby="s3">
+    <div class="panel-h">
+      <h2 id="s3"><span class="step">03</span><span id="roster-title">Roster</span></h2>
+      <div class="actions">
+        <button class="btn primary" type="button" id="btn-copy-mail">Copy for alliance mail</button>
+        <button class="btn accent" type="button" id="btn-save">Save roster</button>
+      </div>
+    </div>
+    <div class="panel-b bench">
+      <div class="summary" id="summary"></div>
+      <div id="warnings" class="bench"></div>
+      <div class="boards" id="boards"></div>
+      <div class="board" style="--tc: var(--muted); --tcs: var(--surface-2)">
+        <div class="group-h"><span id="bench-title">Sitting out</span><span class="cnt" id="bench-count"></span></div>
+        <div class="panel-b bench" id="bench"></div>
+      </div>
+      <div id="mail-fallback" class="hidden">
+        <span class="label">Select all and copy</span>
+        <textarea class="paste" id="ta-fallback" readonly></textarea>
+      </div>
+    </div>
+  </section>
+
+  <!-- LEDGER -->
+  <section class="panel app-only" aria-labelledby="s4">
+    <div class="panel-h">
+      <h2 id="s4"><span class="step">04</span>All members</h2>
+      <span class="muted" style="font-size:13px">Fix last event, mark no-shows, lock players or mark them away. Every R4 sees your changes live.</span>
+    </div>
+    <div class="panel-b">
+      <div class="ledger-tools">
+        <input class="search" type="search" id="search" placeholder="Search a name" aria-label="Search a name">
+        <div class="seg small" role="group" aria-label="Filter members" id="filters">
+          <button type="button" data-f="all" aria-pressed="true">All</button>
+          <button type="button" data-f="A" aria-pressed="false">Team A</button>
+          <button type="button" data-f="B" aria-pressed="false">Team B</button>
+          <button type="button" data-f="OUT" aria-pressed="false">Out</button>
+          <button type="button" data-f="X" aria-pressed="false">Away</button>
+        </div>
+      </div>
+      <div class="legend hidden" id="legend" style="margin-top:10px">
+        <span><span class="pips"><i class="M"></i></span>Main</span>
+        <span><span class="pips"><i class="S"></i></span>Sub</span>
+        <span><span class="pips"><i></i></span>Out</span>
+        <span><span class="pips"><i class="NS"></i></span>No-show</span>
+        <span>Oldest on the left</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="r">#</th>
+              <th>Name</th>
+              <th class="r">1st team power</th>
+              <th>Last event</th>
+              <th class="r" title="Events in a row without a main slot">Waited</th>
+              <th class="hist-col hidden">Recent</th>
+              <th>Officer</th>
+              <th>This event</th>
+              <th>Why</th>
+            </tr>
+          </thead>
+          <tbody id="ledger"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- HISTORY + LOG -->
+  <section class="panel app-only" aria-labelledby="s5">
+    <div class="panel-h"><h2 id="s5"><span class="step">05</span>History</h2></div>
+    <div class="panel-b cols2">
+      <div class="bench">
+        <span class="label">Saved rosters</span>
+        <p class="muted" style="margin:0;font-size:13px" id="history-note"></p>
+        <ul class="hist" id="history"></ul>
+        <div id="history-view" class="hidden"></div>
+      </div>
+      <div class="bench">
+        <span class="label">Recent changes by R4s</span>
+        <ul class="log" id="log"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="panel hidden" id="s6-panel" aria-labelledby="s6">
+    <div class="panel-h"><h2 id="s6"><span class="step">06</span>Alliance settings</h2></div>
+    <div class="panel-b cols2">
+      <div class="bench">
+        <span class="label">R4 link</span>
+        <div class="row-input"><input id="r4-link" class="search" readonly aria-label="R4 link"><button class="btn primary" type="button" id="btn-copy-link">Copy</button></div>
+        <p class="muted small">Anyone with this link can see and change the roster, with no login. Send it only to your R4s in a private chat. If it ever leaks, create a new space and restore a backup there.</p>
+        <label class="label" for="my-name">Your name</label>
+        <input id="my-name" class="search" placeholder="Your name in game" maxlength="40">
+        <p class="muted small">Shown in Recent changes so R4s know who did what. Saved on this device only.</p>
+      </div>
+      <div class="bench">
+        <span class="label">Screenshot reading · Gemini API key</span>
+        <p id="key-status" class="small"></p>
+        <div class="row-input"><input id="key-input" class="search" type="password" placeholder="Paste a Gemini API key" autocomplete="off" aria-label="Gemini API key"><button class="btn accent" type="button" id="btn-key-save">Save key</button></div>
+        <div class="actions"><button class="btn" type="button" id="btn-key-test">Test key</button><button class="btn danger" type="button" id="btn-key-remove">Remove key</button></div>
+        <p class="muted small">Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. One key works for every R4, and anyone with the R4 link can use it, so use a free key with billing turned off.</p>
+        <span class="label">Backup</span>
+        <div class="actions"><button class="btn" type="button" id="btn-backup">Download backup</button><label class="btn" for="file-restore">Restore backup</label><input type="file" id="file-restore" class="file-input" accept="application/json,.json"></div>
+        <div class="banner warn hidden" id="restore-confirm"><span></span><span class="actions"><button class="btn danger" type="button" id="btn-restore-yes">Replace</button><button class="btn ghost" type="button" id="btn-restore-no">Cancel</button></span></div>
+        <div><button class="btn ghost" type="button" id="btn-disconnect">Disconnect this device</button></div>
+      </div>
+    </div>
+  </section>
+
+</div>
+<div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+// ===== Rotation engine (pure functions) =====
+const CAP = { AM: 20, AS: 10, BM: 20, BS: 10 };
+const SLOT_LABEL = { AM: 'Team A · Main', AS: 'Team A · Sub', BM: 'Team B · Main', BS: 'Team B · Sub', OUT: 'Sitting out', NS: 'No-show', X: 'Unavailable', '': 'Unknown' };
+
+function normKey(name) {
+  return String(name || '')
+    .replace(/^\s*\[[^\]]*\]\s*/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+// Parse "45.2M", "45,200,000", "45.2", "880K", "1.2B"
+function parsePowerRaw(v) {
+  if (v === null || v === undefined) return { n: NaN, suffix: false };
+  if (typeof v === 'number') return { n: v, suffix: false };
+  let s = String(v).trim().toUpperCase().replace(/\s/g, '');
+  if (!s) return { n: NaN, suffix: false };
+  const m = s.match(/^([0-9.,]+)([KMBG])?$/);
+  if (!m) {
+    const d = parseFloat(s.replace(/[^0-9.]/g, ''));
+    return { n: d, suffix: false };
+  }
+  let num = m[1];
+  // "45,2" (comma decimal) vs "45,200,000" (thousand separators)
+  if (/^\d+,\d{1,2}$/.test(num)) num = num.replace(',', '.');
+  else num = num.replace(/,/g, '');
+  let n = parseFloat(num);
+  const mult = { K: 1e3, M: 1e6, B: 1e9, G: 1e9 }[m[2]] || 1;
+  return { n: n * mult, suffix: !!m[2] };
+}
+
+// Normalise a list of raw power values. If nobody used a suffix and every value is
+// small, the sheet is almost certainly in millions ("45.2" = 45.2M).
+function normalisePowers(raws) {
+  const parsed = raws.map(parsePowerRaw);
+  const anySuffix = parsed.some(p => p.suffix);
+  const vals = parsed.map(p => p.n).filter(n => isFinite(n));
+  const max = vals.length ? Math.max(...vals) : 0;
+  const inMillions = !anySuffix && max > 0 && max < 10000;
+  return parsed.map(p => (isFinite(p.n) ? (inMillions && !p.suffix ? p.n * 1e6 : p.n) : 0));
+}
+
+function fmtPower(n) {
+  if (!n) return '—';
+  if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(0) + 'K';
+  return String(Math.round(n));
+}
+
+// Turn whatever the sheet says about last time into one of:
+// AM AS BM BS OUT NS ''
+function normStatus(raw) {
+  if (raw === null || raw === undefined) return '';
+  const s = String(raw).trim().toLowerCase();
+  if (!s) return '';
+  const code = s.toUpperCase().replace(/[^A-Z]/g, '');
+  if (['AM', 'AS', 'BM', 'BS', 'OUT', 'NS'].includes(code)) return code;
+  if (/no.?show|absent|afk|missed|did ?n.?t (show|join|play)|didnt|ghost/.test(s)) return 'NS';
+  const teamB = /(^|[^a-z])(b|tf ?b|team ?b|task ?force ?b)([^a-z]|$)/.test(s);
+  const teamA = /(^|[^a-z])(a|tf ?a|team ?a|task ?force ?a)([^a-z]|$)/.test(s);
+  const team = teamB && !teamA ? 'B' : 'A';
+  if (/sub|substitut|reserve|bench|backup|standby/.test(s)) return team + 'S';
+  if (/^(out|none|no|n|not|sat|skip|rest|rested|off|0|false|-|—)$|sat out|^not |did not|didn.?t|rest/.test(s)) return 'OUT';
+  if (/main|start|core|played|^yes$|^y$|participat|fought|fight|^1$|^true$|^x$|✓|✔/.test(s)) return team + 'M';
+  if (teamA || teamB) return team + 'M';
+  return '';
+}
+
+// How many events in a row a member has gone without a MAIN slot.
+// Uses the explicit number when the sheet has one, otherwise derives it from last status.
+function gapOf(m) {
+  if (typeof m.gap === 'number' && isFinite(m.gap)) return Math.max(0, Math.min(99, Math.round(m.gap)));
+  if (m.last === 'AM' || m.last === 'BM') return 0;
+  return 1; // sub, out, no-show or unknown: missed at least the last event
+}
+function wasSub(m) { return m.last === 'AS' || m.last === 'BS'; }
+function penalised(m, opts) { return !!opts.noShowPenalty && m.last === 'NS'; }
+
+// Rotation queue order: no-show penalty last, then longest wait, then last-time subs, then power.
+function queueCompare(a, b, opts) {
+  return (penalised(a, opts) - penalised(b, opts))
+    || (gapOf(b) - gapOf(a))
+    || (wasSub(b) - wasSub(a))
+    || (b.power - a.power)
+    || a.name.localeCompare(b.name);
+}
+
+function waited(n) { return 'Waited ' + n + ' event' + (n === 1 ? '' : 's'); }
+
+function reasonFor(m, slot, opts) {
+  if (m._core) return 'Core: top power, always in Team A';
+  if (m._locked) return 'Locked by an officer';
+  if (slot === 'X') return 'Marked unavailable';
+  const g = gapOf(m);
+  const main = slot === 'AM' || slot === 'BM';
+  const sub = slot === 'AS' || slot === 'BS';
+  if (penalised(m, opts)) return main ? 'No-show last time, fills a spare slot' : sub ? 'No-show last time, sub this time' : 'No-show last time, back of the queue';
+  if (g === 0) return main ? 'Main last time, fills a spare slot' : sub ? 'Main last time, sub this time' : 'Main last time, rests this time';
+  const why = wasSub(m) ? (g === 1 ? 'Sub last time' : 'Sub last time, ' + waited(g).toLowerCase()) : waited(g) + ' without a main slot';
+  return main ? why : sub ? why + ', sub now, main next time' : why + ', first in line next time';
+}
+
+// Short label for chips
+function tagFor(m, slot, opts) {
+  if (m._core) return 'Core';
+  if (m._locked) return 'Locked';
+  if (slot === 'X') return 'Away';
+  if (penalised(m, opts)) return 'No-show';
+  const g = gapOf(m);
+  const main = slot === 'AM' || slot === 'BM';
+  const sub = slot === 'AS' || slot === 'BS';
+  if (g === 0) return main ? 'Spare' : sub ? 'Spare' : 'Rest';
+  if (main || sub) return wasSub(m) ? 'Was sub' : 'Waited ' + g;
+  return 'Next';
+}
+
+// Gap to store after this event, so the next rotation knows who has waited longest.
+function nextGap(m, slot) {
+  if (slot === 'AM' || slot === 'BM') return 0;
+  return Math.min(99, gapOf(m) + 1);
+}
+
+/**
+ * members: [{key, name, power, last, ov}]  ov: '' | 'A' | 'B' | 'X'
+ * opts: {core, split:'tiered'|'balanced', teamB:boolean, noShowPenalty:boolean}
+ */
+function buildRoster(members, opts) {
+  const o = Object.assign({ core: 0, split: 'tiered', teamB: true, noShowPenalty: true }, opts || {});
+  const cap = { AM: CAP.AM, AS: CAP.AS, BM: o.teamB ? CAP.BM : 0, BS: o.teamB ? CAP.BS : 0 };
+  const teams = { AM: [], AS: [], BM: [], BS: [] };
+  const out = [];
+  const unavailable = [];
+  const assign = {};
+  const warnings = [];
+  const byPower = (a, b) => (b.power - a.power) || a.name.localeCompare(b.name);
+
+  const ms = members.map(m => Object.assign({}, m, { _core: false, _locked: false }));
+  const put = (m, slot) => {
+    if (slot === 'OUT') out.push(m);
+    else if (slot === 'X') unavailable.push(m);
+    else teams[slot].push(m);
+    assign[m.key] = { slot, reason: reasonFor(m, slot, o), tag: tagFor(m, slot, o), gap: slot === 'X' ? gapOf(m) : nextGap(m, slot) };
+  };
+
+  const avail = [];
+  ms.forEach(m => (m.ov === 'X' ? put(m, 'X') : avail.push(m)));
+
+  // 1. Officer locks
+  const lockedA = avail.filter(m => m.ov === 'A').sort(byPower);
+  let lockedB = avail.filter(m => m.ov === 'B').sort(byPower);
+  if (!o.teamB && lockedB.length) {
+    warnings.push(lockedB.length + ' player(s) locked to Team B were moved to Team A because Team B is off.');
+    lockedA.push(...lockedB);
+    lockedA.sort(byPower);
+    lockedB = [];
+  }
+  const overflow = [];
+  lockedA.forEach(m => { if (teams.AM.length < cap.AM) { m._locked = true; put(m, 'AM'); } else overflow.push(m); });
+  lockedB.forEach(m => { if (teams.BM.length < cap.BM) { m._locked = true; put(m, 'BM'); } else overflow.push(m); });
+  if (overflow.length) warnings.push(overflow.length + ' locked player(s) did not fit (20 mains per team) and went into the normal rotation.');
+
+  // 2. Core: top N by power among the rest go straight to Team A main
+  let rest = avail.filter(m => !assign[m.key]);
+  const coreN = Math.max(0, Math.min(o.core | 0, cap.AM - teams.AM.length));
+  if ((o.core | 0) > coreN) warnings.push('Core size was cut to ' + coreN + ' because officers already locked players into Team A.');
+  rest.slice().sort(byPower).slice(0, coreN).forEach(m => { m._core = true; put(m, 'AM'); });
+  rest = rest.filter(m => !assign[m.key]);
+
+  // 3. Rotation queue: longest wait first, then last-time subs, then power
+  rest.sort((a, b) => queueCompare(a, b, o));
+  const mainLeft = (cap.AM - teams.AM.length) + (cap.BM - teams.BM.length);
+  const subLeft = cap.AS + cap.BS;
+  const mains = rest.slice(0, mainLeft);
+  const subs = rest.slice(mainLeft, mainLeft + subLeft);
+  rest.slice(mainLeft + subLeft).forEach(m => put(m, 'OUT'));
+
+  // 4. Split into A and B
+  const total = arr => arr.reduce((s, m) => s + m.power, 0);
+  function split(list, sA, sB) {
+    const sorted = list.slice().sort(byPower);
+    if (o.split === 'balanced') {
+      sorted.forEach(m => {
+        const roomA = teams[sA].length < cap[sA];
+        const roomB = teams[sB].length < cap[sB];
+        let slot;
+        if (roomA && roomB) {
+          const tA = total(teams[sA]), tB = total(teams[sB]);
+          slot = tA <= tB ? sA : sB;
+        } else slot = roomA ? sA : sB;
+        put(m, slot);
+      });
+    } else {
+      sorted.forEach(m => put(m, teams[sA].length < cap[sA] ? sA : sB));
+    }
+  }
+  split(mains, 'AM', 'BM');
+  split(subs, 'AS', 'BS');
+
+  Object.keys(teams).forEach(k => teams[k].sort(byPower));
+  out.sort(byPower);
+  unavailable.sort(byPower);
+
+  const filled = Object.keys(teams).reduce((s, k) => s + teams[k].length, 0);
+  const capTotal = cap.AM + cap.AS + cap.BM + cap.BS;
+  if (filled < capTotal) warnings.push('Only ' + filled + ' of ' + capTotal + ' slots are filled: not enough available members.');
+
+  return { teams, out, unavailable, assign, warnings, cap };
+}
+
+if (typeof module !== 'undefined') module.exports = { CAP, SLOT_LABEL, normKey, parsePowerRaw, normalisePowers, fmtPower, normStatus, gapOf, nextGap, buildRoster };
+
+</script>
+<script>
+(function () {
+'use strict';
+
+// ================= constants =================
+const EVENTS = {
+  ds: { name: 'Desert Storm', facts: ['<b>Registration</b> Mon–Wed', '<b>Battle</b> Friday, 30 min', '<b>Per team</b> 20 main + 10 subs', '<b>One team</b> per player', '<b>Subs</b> enter only when a main leaves the battlefield'] },
+  cs: { name: 'Canyon Storm', facts: ['<b>Off-season</b> battlefield', '<b>1 vs 2</b> alliances: Rulebringers vs Dawnbreakers', '<b>Per team</b> 20 main + 10 subs', '<b>Up to 20</b> fight per alliance in a match', '<b>Subs</b> switch in when a main leaves'] }
+};
+const KINDS = {
+  members: { title: 'Member list', sub: 'Names + 1st team power', help: 'Screenshots of the screen that lists members with their 1st team power. Scroll and take as many as you need; overlaps are fine.', desc: 'a list of alliance members, each with a power figure (ideally 1st team / squad 1 power)' },
+  A: { title: 'Team A lineup', sub: 'Who was in Team A', help: "Screenshots of Team A's registered players, main and subs. Use this when the in-game lineup differed from the tool, or to set up the first time.", desc: 'the Team A (Task Force A) lineup for an alliance battle, with starters (main) and substitutes' },
+  B: { title: 'Team B lineup', sub: 'Who was in Team B', help: "Screenshots of Team B's registered players, main and subs.", desc: 'the Team B (Task Force B) lineup for an alliance battle, with starters (main) and substitutes' },
+  results: { title: 'Battle results', sub: 'Marks no-shows', help: 'Screenshots of the results or scoreboard after the battle. Registered mains who are missing get marked No-show, and subs who fought get credit as main.', desc: 'the results or scoreboard after an alliance battle, listing the players who took part' }
+};
+const STATUS_OPTS = [['', '—'], ['AM', 'A Main'], ['AS', 'A Sub'], ['BM', 'B Main'], ['BS', 'B Sub'], ['OUT', 'Out'], ['NS', 'No-show']];
+const OV_OPTS = [['', 'Auto'], ['A', 'Lock Team A'], ['B', 'Lock Team B'], ['X', 'Away / unavailable']];
+const DEFAULT_SETTINGS = { core: 0, split: 'tiered', teamB: true, noShowPenalty: true };
+const LS_KEY = 'storm-rotation-v2';
+const HISTORY_CAP = 16;
+
+// ================= state =================
+function blankSource() { return { members: [], membersMeta: null, work: { ds: null, cs: null }, saved: { ds: [], cs: [] }, log: [], example: false, config: {} }; }
+const state = {
+  event: 'ds',
+  mode: 'local',          // 'local' | 'db'
+  remoteActive: false,    // shared data in use
+  local: blankSource(),
+  remote: blankSource(),
+  remoteSeen: { members: false, ds: false, cs: false, dsw: false, csw: false, log: false, config: false },
+  view: 'gate',
+  canWrite: true,
+  me: null,
+  names: {},
+  filter: 'all', search: '',
+  result: null,
+  shots: { kind: 'members', files: [], busy: false, progress: '', error: '', review: null, ctl: null }
+};
+const useRemote = () => state.mode === 'db' && state.remoteActive;
+const S = () => (useRemote() ? state.remote : state.local);
+
+// ================= helpers =================
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const nowIso = () => new Date().toISOString();
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.remove('hidden'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.add('hidden'), 3000); }
+function isoDate(d) { const z = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()); }
+function parseIso(s) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ''); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; }
+function todayIso() { return isoDate(new Date()); }
+function nextFriday(from) { const d = new Date(from.getFullYear(), from.getMonth(), from.getDate()); d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7)); return d; }
+function fmtDay(s) { const d = parseIso(s); return d ? d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : s; }
+function fmtShort(s) { const d = parseIso(s); return d ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : s; }
+function ago(iso) {
+  const t = Date.parse(iso || ''); if (!t) return '';
+  const s = Math.max(0, (Date.now() - t) / 1000);
+  if (s < 60) return 'just now'; if (s < 3600) return Math.round(s / 60) + ' min ago';
+  if (s < 86400) return Math.round(s / 3600) + ' h ago'; if (s < 86400 * 14) return Math.round(s / 86400) + ' days ago';
+  return new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+function nextDate(prevIso) {
+  const d = parseIso(prevIso) || new Date(); const t = parseIso(todayIso());
+  do { d.setDate(d.getDate() + 7); } while (d < t);
+  return isoDate(d);
+}
+// stable short id for a member name (safe as a storage key)
+function hk(key) {
+  let h = 0x811c9dc5;
+  for (const ch of key) { const c = ch.codePointAt(0); for (let s = 0; s < 24; s += 8) { h ^= (c >> s) & 0xff; h = Math.imul(h, 0x01000193); } }
+  return 'm' + (h >>> 0).toString(36);
+}
+function mk(name, power) { const clean = String(name).replace(/^\s*\[[^\]]*\]\s*/, '').trim(); const key = normKey(clean); return { key, hk: hk(key), name: clean, power: power || 0 }; }
+const alnum = s => normKey(s).replace(/[^\p{L}\p{N}]/gu, '');
+function lev(a, b) {
+  if (a === b) return 0; if (!a.length) return b.length; if (!b.length) return a.length;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[b.length];
+}
+function sim(a, b) { const x = alnum(a), y = alnum(b); if (!x || !y) return 0; if (x === y) return 1; const L = Math.max(x.length, y.length); let s = 1 - lev(x, y) / L; if (Math.min(x.length, y.length) >= 4 && (x.includes(y) || y.includes(x))) s = Math.max(s, 0.8); return s; }
+
+// ================= work (inputs for the upcoming battle) =================
+function workFromSaved(evId, src) {
+  const saved = src.saved[evId] || [];
+  const date = isoDate(nextFriday(new Date()));
+  const base = { date, last: {}, gap: {}, ov: {}, settings: Object.assign({}, DEFAULT_SETTINGS), exists: false };
+  const cur = saved.find(h => h.date === date);
+  const prev = saved.find(h => h.date < date);
+  if (cur) {
+    cur.rows.forEach(x => { const h = hk(normKey(x.n)); if (x.l) base.last[h] = x.l; if (x.lg != null) base.gap[h] = x.lg; if (x.o) base.ov[h] = x.o; });
+    if (cur.settings) base.settings = Object.assign({}, DEFAULT_SETTINGS, cur.settings);
+  } else if (prev) {
+    prev.rows.forEach(x => { const h = hk(normKey(x.n)); base.last[h] = x.s === 'X' ? (x.l || '') : x.s; base.gap[h] = x.g; if (x.o === 'A' || x.o === 'B') base.ov[h] = x.o; });
+    if (prev.settings) base.settings = Object.assign({}, DEFAULT_SETTINGS, prev.settings);
+  }
+  return base;
+}
+function effectiveWork(evId, src) { src = src || S(); return src.work[evId] || workFromSaved(evId, src); }
+function mergeWork(base, patch) {
+  const n = { date: patch.date || base.date, last: Object.assign({}, base.last, patch.last), gap: Object.assign({}, base.gap, patch.gap), ov: Object.assign({}, base.ov, patch.ov), settings: Object.assign({}, DEFAULT_SETTINGS, base.settings, patch.settings) };
+  return n;
+}
+function membersFor(evId, src) {
+  src = src || S(); const w = effectiveWork(evId, src);
+  return src.members.map(m => ({
+    key: m.key, hk: m.hk, name: m.name, power: m.power,
+    last: w.last[m.hk] || '',
+    gap: (m.hk in w.gap && w.gap[m.hk] !== null && w.gap[m.hk] !== '') ? +w.gap[m.hk] : null,
+    ov: w.ov[m.hk] || ''
+  }));
+}
+const curWork = () => effectiveWork(state.event);
+const settings = () => curWork().settings;
+
+// ================= persistence =================
+let db = null, userCap = null, sampleFn = null, sampleImgs = null;
+const queues = {};
+function q(path, fn) { queues[path] = (queues[path] || Promise.resolve()).then(fn, fn); return queues[path]; }
+function writeFailed(e) {
+  const code = e && e.code;
+  if (code === 'invalid_argument') { state.canWrite = false; toast('Your change was not saved: you have view-only access.'); }
+  else if (code === 'quota_exceeded') toast('Shared storage is full. Delete an old saved roster.');
+  else toast('A change could not be saved. Check your connection and try again.');
+  render();
+}
+function saveLocal() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify({ at: Date.now(), event: state.event, local: state.local })); } catch (e) { /* no storage */ }
+}
+function loadLocal() {
+  try {
+    const d = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+    if (!d || !d.local || !Array.isArray(d.local.members) || !d.local.members.length) return false;
+    const L = blankSource(); Object.assign(L, d.local);
+    L.members = L.members.map(m => Object.assign(mk(m.name, m.power), { power: +m.power || 0 }));
+    L.saved = { ds: (L.saved && L.saved.ds) || [], cs: (L.saved && L.saved.cs) || [] };
+    ['ds', 'cs'].forEach(k => { L.saved[k] = L.saved[k].map(h => Object.assign({}, h, { rowsByKey: byKeyRows(h.rows) })); });
+    L.work = Object.assign({ ds: null, cs: null }, L.work);
+    state.local = L; state.event = d.event === 'cs' ? 'cs' : 'ds';
+    return true;
+  } catch (e) { return false; }
+}
+function byKeyRows(rows) { const o = {}; (rows || []).forEach(x => { o[normKey(x.n)] = x; }); return o; }
+
+async function setMembers(list, logText) {
+  const src = S();
+  src.members = list; src.membersMeta = { updatedAt: nowIso(), by: state.me || '' };
+  render();
+  if (!useRemote()) { saveLocal(); if (logText) addLog(logText); return; }
+  try {
+    await q('storm/members', () => db.doc('storm/members').set({ list: list.map(m => ({ n: m.name, p: Math.round(m.power) })), updatedAt: src.membersMeta.updatedAt, by: state.me || '' }));
+    if (logText) addLog(logText);
+  } catch (e) { writeFailed(e); }
+}
+async function patchWork(evId, patch, logText, replace) {
+  const src = S();
+  const base = replace ? { date: patch.date, last: {}, gap: {}, ov: {}, settings: patch.settings || DEFAULT_SETTINGS } : effectiveWork(evId, src);
+  const next = mergeWork(base, replace ? Object.assign({}, patch, { last: patch.last, gap: patch.gap, ov: patch.ov }) : patch);
+  next.exists = true; next.updatedAt = nowIso(); next.by = state.me || '';
+  const existed = !!src.work[evId];
+  src.work[evId] = next;
+  render();
+  if (!useRemote()) { saveLocal(); if (logText) addLog(logText, evId); return; }
+  const path = 'storm/' + evId + '-work';
+  try {
+    if (existed && !replace && state.remoteSeen[evId + 'w'] !== 'missing') {
+      const up = { updatedAt: next.updatedAt, by: next.by };
+      ['last', 'gap', 'ov', 'settings'].forEach(k => { if (patch[k] && Object.keys(patch[k]).length) up[k] = patch[k]; });
+      if (patch.date) up.date = patch.date;
+      await q(path, () => db.doc(path).update(up));
+    } else {
+      await q(path, () => db.doc(path).set({ date: next.date, last: next.last, gap: next.gap, ov: next.ov, settings: next.settings, updatedAt: next.updatedAt, by: next.by }));
+    }
+    if (logText) addLog(logText, evId);
+  } catch (e) {
+    if (e && e.code === 'invalid_argument' && existed && !replace) {
+      // the shared doc may not exist yet: write it whole once
+      try { await q(path, () => db.doc(path).set({ date: next.date, last: next.last, gap: next.gap, ov: next.ov, settings: next.settings, updatedAt: next.updatedAt, by: next.by })); if (logText) addLog(logText, evId); return; } catch (e2) { return writeFailed(e2); }
+    }
+    writeFailed(e);
+  }
+}
+function encodeHistory(list) { return list.map(h => ({ date: h.date, savedAt: h.savedAt, by: h.by || '', settings: h.settings, rows: h.rows })); }
+async function setHistory(evId, list, logText) {
+  const src = S(); src.saved[evId] = list; render();
+  if (!useRemote()) { saveLocal(); if (logText) addLog(logText, evId); return; }
+  try { await q('storm/' + evId, () => db.doc('storm/' + evId).set({ history: encodeHistory(list) })); if (logText) addLog(logText, evId); }
+  catch (e) { writeFailed(e); }
+}
+async function addLog(text, evId) {
+  const item = { at: nowIso(), by: state.me || '', ev: evId || '', text };
+  if (!useRemote()) { S().log.unshift(item); S().log = S().log.slice(0, 15); saveLocal(); renderLog(); return; }
+  try { await db.collection('log').add(item); } catch (e) { /* the log is best effort */ }
+}
+
+function rosterRows(evId, src) {
+  src = src || S();
+  const w = effectiveWork(evId, src); const ms = membersFor(evId, src); const r = buildRoster(ms, w.settings);
+  const rows = ms.map(m => { const a = r.assign[m.key]; return { n: m.name, p: Math.round(m.power), s: a.slot, g: a.gap, l: m.last || '', lg: m.gap === null ? gapOf(m) : m.gap, o: m.ov || '' }; });
+  return { w, ms, r, rows };
+}
+function withEntry(evId, date, rows, settingsObj) {
+  const list = (S().saved[evId] || []).filter(h => h.date !== date);
+  list.push({ date, savedAt: nowIso(), by: state.me || '', settings: Object.assign({}, settingsObj), rows, rowsByKey: byKeyRows(rows) });
+  list.sort((a, b) => b.date.localeCompare(a.date));
+  return list.slice(0, HISTORY_CAP);
+}
+async function saveRoster() {
+  const evId = state.event; const { w, rows } = rosterRows(evId);
+  await setHistory(evId, withEntry(evId, w.date, rows, w.settings), 'Saved the ' + EVENTS[evId].name + ' roster for ' + fmtShort(w.date));
+  toast('Roster saved for ' + fmtShort(w.date));
+}
+// Battle is over: keep what was played as history, then make it the "last event" of the next battle.
+async function rollForward(evId) {
+  const { w, ms, r, rows } = rosterRows(evId);
+  await setHistory(evId, withEntry(evId, w.date, rows, w.settings));
+  const nd = nextDate(w.date);
+  const nw = { date: nd, last: {}, gap: {}, ov: {}, settings: Object.assign({}, w.settings) };
+  ms.forEach(m => { const a = r.assign[m.key]; nw.last[m.hk] = a.slot === 'X' ? (m.last || '') : a.slot; nw.gap[m.hk] = a.gap; if (m.ov === 'A' || m.ov === 'B') nw.ov[m.hk] = m.ov; });
+  await patchWork(evId, nw, 'Started the ' + EVENTS[evId].name + ' roster for ' + fmtShort(nd) + ' (the ' + fmtShort(w.date) + ' lineup is now the last event)', true);
+}
+
+// ================= shared storage (db) =================
+function parseMembersDoc(d) {
+  const list = Array.isArray(d && d.list) ? d.list : [];
+  return list.filter(x => x && x.n).map(x => mk(String(x.n), +x.p || 0));
+}
+function parseWorkDoc(d) {
+  const obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
+  return { date: typeof d.date === 'string' ? d.date : isoDate(nextFriday(new Date())), last: Object.assign({}, obj(d.last)), gap: Object.assign({}, obj(d.gap)), ov: Object.assign({}, obj(d.ov)), settings: Object.assign({}, DEFAULT_SETTINGS, obj(d.settings)), updatedAt: d.updatedAt || '', by: d.by || '', exists: true };
+}
+function parseHistoryDoc(d) {
+  const list = Array.isArray(d && d.history) ? d.history : [];
+  return list.filter(h => h && typeof h.date === 'string' && Array.isArray(h.rows)).map(h => {
+    const rows = h.rows.map(x => ({ n: String(x.n || ''), p: +x.p || 0, s: String(x.s || ''), g: +x.g || 0, l: String(x.l || ''), lg: x.lg == null ? null : +x.lg, o: String(x.o || '') }));
+    return { date: h.date, savedAt: h.savedAt || '', by: h.by || '', settings: h.settings || null, rows, rowsByKey: byKeyRows(rows) };
+  }).sort((a, b) => b.date.localeCompare(a.date));
+}
+function remoteHasData() {
+  const R = state.remote;
+  return R.members.length > 0 || R.saved.ds.length > 0 || R.saved.cs.length > 0 || !!R.work.ds || !!R.work.cs;
+}
+function activate() {
+  if (state.remoteActive || !remoteHasData()) return;
+  state.remoteActive = true;
+  // v1 data had no member list document: take members from the newest saved roster
+  if (!state.remote.members.length) {
+    const all = state.remote.saved.ds.concat(state.remote.saved.cs).sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
+    if (all[0]) state.remote.members = all[0].rows.map(x => mk(x.n, x.p));
+  }
+}
+// ---- connection: Firebase project + alliance code, carried in the R4 link ----
+const CONN_KEY = 'storm-site-conn-v1', NAME_KEY = 'storm-site-name';
+// This alliance's Firebase project (public web settings, safe to ship in the page)
+const BUILTIN_CFG = { apiKey: 'AIzaSyCXAEVeIJGesP59Ymrx6Suk6LmjE7PqMMI', authDomain: 'storm-roster.firebaseapp.com', projectId: 'storm-roster', appId: '1:842819388303:web:e48b44998b95d4fc41c1fa' };
+let conn = null, fsDb = null, connErr = '';
+function b64urlEncode(str) { return btoa(unescape(encodeURIComponent(str))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function b64urlDecode(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return decodeURIComponent(escape(atob(s))); }
+function joinLink() {
+  if (!conn) return '';
+  const c = conn.cfg; const payload = { c: { apiKey: c.apiKey, authDomain: c.authDomain, projectId: c.projectId, appId: c.appId }, k: conn.code };
+  return location.origin + location.pathname + '#join=' + b64urlEncode(JSON.stringify(payload));
+}
+function readJoinFromHash() {
+  const m = /[#&]join=([A-Za-z0-9_-]+)/.exec(location.hash || '');
+  if (!m) return null;
+  try { const p = JSON.parse(b64urlDecode(m[1])); if (p && p.c && p.c.apiKey && p.c.projectId && typeof p.k === 'string' && p.k.length >= 20) return { cfg: p.c, code: p.k }; } catch (e) { /* bad link */ }
+  return 'bad';
+}
+function saveConn(c) { try { localStorage.setItem(CONN_KEY, JSON.stringify(c)); } catch (e) { /* no storage */ } }
+function loadConn() { try { const c = JSON.parse(localStorage.getItem(CONN_KEY) || 'null'); return c && c.cfg && c.code ? c : null; } catch (e) { return null; } }
+function myName() { try { return (localStorage.getItem(NAME_KEY) || '').trim().slice(0, 40); } catch (e) { return ''; } }
+function newCode() { const a = new Uint8Array(24); crypto.getRandomValues(a); return Array.from(a, b => 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 56]).join(''); }
+function parseFbConfig(text) {
+  const get = k => { const m = new RegExp('["\']?' + k + '["\']?\\s*[:=]\\s*["\']([^"\']+)["\']').exec(text || ''); return m ? m[1].trim() : ''; };
+  const c = { apiKey: get('apiKey'), authDomain: get('authDomain'), projectId: get('projectId'), appId: get('appId') };
+  if (!c.apiKey || !c.projectId) return null;
+  if (!c.authDomain) c.authDomain = c.projectId + '.firebaseapp.com';
+  return c;
+}
+function firebaseErrorText(e) {
+  const c = (e && e.code) || '';
+  if (c === 'auth/operation-not-allowed' || c === 'auth/admin-restricted-operation') return 'Anonymous sign-in is turned off. In Firebase: Build → Authentication → Sign-in method → Anonymous → Enable (setup step 2).';
+  if (/api-key|invalid-api-key|app-not-authorized|unauthorized-domain/.test(c)) return 'Firebase refused this site. Check the config you pasted, and that ' + location.hostname + ' is in Authentication → Settings → Authorized domains.';
+  if (c === 'auth/network-request-failed' || c === 'unavailable') return 'No connection to Firebase. Check your internet and reload.';
+  if (c === 'permission-denied') return 'Firebase refused access. Check that the security rules from setup step 4 are published, and that the R4 link was copied in full.';
+  if (c === 'failed-precondition' || c === 'not-found') return 'The Firestore database does not exist yet. Create it in Firebase (setup step 3).';
+  return 'Could not connect to Firebase (' + (c || 'unknown error') + ').';
+}
+function makeAdapter(fs, code) {
+  const base = 'alliances/' + code;
+  const mapDoc = p => base + '/data/' + p.replace(/^storm\//, '').replace(/\//g, '_');
+  const wrap = e => { const c = e && e.code; return { code: c === 'permission-denied' ? 'invalid_argument' : c === 'resource-exhausted' ? 'quota_exceeded' : 'unavailable', raw: c, message: String((e && e.message) || e) }; };
+  const onErr = (e, err) => { connErr = firebaseErrorText(e); render(); if (err) err(wrap(e)); };
+  const doc = p => { const ref = fs.doc(mapDoc(p)); return {
+    get: () => ref.get().then(x => ({ exists: x.exists, data: () => x.data() }), e => { throw wrap(e); }),
+    set: d => ref.set(d).catch(e => { throw wrap(e); }),
+    update: d => ref.set(d, { merge: true }).catch(e => { throw wrap(e); }),
+    delete: () => ref.delete().catch(e => { throw wrap(e); }),
+    onSnapshot: (next, err) => ref.onSnapshot(x => { connErr = ''; next({ exists: x.exists, data: () => x.data() }); }, e => onErr(e, err))
+  }; };
+  const collection = p => { let q = fs.collection(base + '/' + p); const api = {
+    orderBy: (f, d) => { q = q.orderBy(f, d); return api; },
+    limit: n => { q = q.limit(n); return api; },
+    add: d => fs.collection(base + '/' + p).add(d).catch(e => { throw wrap(e); }),
+    onSnapshot: (next, err) => q.onSnapshot(x => next({ docs: x.docs.map(d => ({ id: d.id, exists: true, data: () => d.data() })) }), e => onErr(e, err))
+  }; return api; };
+  return { doc, collection };
+}
+async function connect(c) {
+  if (!window.firebase || !firebase.initializeApp) { connErr = 'Could not load Firebase. Check your internet connection and reload.'; render(); return false; }
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(c.cfg);
+    await firebase.auth().signInAnonymously();
+    fsDb = firebase.firestore();
+    db = makeAdapter(fsDb, c.code);
+  } catch (e) { connErr = firebaseErrorText(e); render(); return false; }
+  conn = c; saveConn(c); connErr = '';
+  state.mode = 'db'; state.me = myName(); state.remoteActive = true; state.view = 'app';
+  if (state.local.example) state.local = blankSource();
+  const timer = setTimeout(() => { if (!state.remoteSeen.members) toast('Shared data is taking long to load. Check your connection.'); }, 10000);
+  const rerender = () => { activate(); render(); };
+  const err = () => { /* listener ended; keep what we have */ };
+  db.doc('storm/config').onSnapshot(x => { state.remote.config = x.exists ? x.data() : {}; state.remoteSeen.config = true; render(); }, err);
+  db.doc('storm/members').onSnapshot(x => {
+    clearTimeout(timer); state.remoteSeen.members = true;
+    if (x.exists) { const d = x.data(); state.remote.members = parseMembersDoc(d); state.remote.membersMeta = { updatedAt: d.updatedAt || '', by: d.by || '' }; }
+    rerender();
+  }, err);
+  ['ds', 'cs'].forEach(k => {
+    db.doc('storm/' + k + '-work').onSnapshot(x => { state.remoteSeen[k + 'w'] = x.exists ? 'yes' : 'missing'; state.remote.work[k] = x.exists ? parseWorkDoc(x.data()) : null; rerender(); }, err);
+    db.doc('storm/' + k).onSnapshot(x => { state.remoteSeen[k] = true; state.remote.saved[k] = x.exists ? parseHistoryDoc(x.data()) : []; rerender(); }, err);
+  });
+  db.collection('log').orderBy('at', 'desc').limit(15).onSnapshot(x => { state.remote.log = x.docs.map(d => d.data()).filter(y => y && y.text); renderLog(); renderSync(); }, err);
+  return true;
+}
+async function createSpace(cfg) {
+  const c = { cfg, code: newCode() };
+  const ok = await connect(c);
+  if (!ok) return;
+  try { await db.doc('storm/config').set({ createdAt: nowIso(), createdBy: myName() || '' }); }
+  catch (e) { connErr = 'Connected, but could not save. Check the security rules from setup step 4.'; render(); return; }
+  if (state.local.example) state.local = blankSource();
+  toast('Alliance space created. Copy the R4 link in step 06.');
+  render();
+  $('s6').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+async function shareLocal() {
+  const L = state.local;
+  state.remoteActive = true;
+  state.remote.members = L.members.slice(); state.remote.saved = { ds: L.saved.ds.slice(), cs: L.saved.cs.slice() };
+  await setMembers(L.members.slice(), 'Shared the member list (' + L.members.length + ' members)');
+  for (const k of ['ds', 'cs']) {
+    if (L.saved[k].length) await setHistory(k, L.saved[k].slice());
+    if (L.work[k]) await patchWork(k, Object.assign({}, L.work[k]), null, true);
+  }
+  toast('Shared with your R4s');
+}
+
+// ================= Gemini: reading screenshots =================
+const GEM = 'https://generativelanguage.googleapis.com/v1beta';
+const IMG_LIMITS = { maxCount: 4, maxInputBytes: 30e6, mediaTypes: ['image/png', 'image/jpeg', 'image/webp'] };
+let gemModel = null;
+const geminiKey = () => ((useRemote() || state.mode === 'db') && state.remote.config && state.remote.config.geminiKey) || '';
+async function gemFail(r) {
+  let j = null; try { j = await r.json(); } catch (e) { /* not json */ }
+  const msg = (j && j.error && j.error.message) || ''; const st = (j && j.error && j.error.status) || '';
+  if (r.status === 429 || st === 'RESOURCE_EXHAUSTED') return { code: 'rate_limited', message: msg };
+  if (/API key not valid|API_KEY_INVALID|API key expired/i.test(msg) || r.status === 401) return { code: 'bad_key', message: msg };
+  if (/location is not supported/i.test(msg)) return { code: 'region', message: msg };
+  if (r.status === 403) return { code: 'bad_key', message: msg };
+  if (r.status === 404) { gemModel = null; return { code: 'upstream_error', message: msg }; }
+  return { code: 'upstream_error', message: msg || ('HTTP ' + r.status) };
+}
+async function gemPickModel(key) {
+  if (gemModel) return gemModel;
+  let models = [], page = '';
+  do {
+    const r = await fetch(GEM + '/models?pageSize=100' + (page ? '&pageToken=' + encodeURIComponent(page) : ''), { headers: { 'x-goog-api-key': key } });
+    if (!r.ok) throw await gemFail(r);
+    const j = await r.json(); models = models.concat(j.models || []); page = j.nextPageToken || '';
+  } while (page && models.length < 500);
+  const can = m => (m.supportedGenerationMethods || []).includes('generateContent');
+  const ver = n => { const m = /gemini-(\d+(?:\.\d+)?)/.exec(n); return m ? parseFloat(m[1]) : 0; };
+  const pool = models.filter(m => can(m) && /gemini/.test(m.name) && /flash/.test(m.name) && !/(lite|image|tts|audio|live|embed|thinking|learnlm|robotics|computer)/.test(m.name));
+  const stable = pool.filter(m => !/(preview|exp)/.test(m.name));
+  const pickFrom = (stable.length ? stable : pool).sort((a, b) => ver(b.name) - ver(a.name) || a.name.length - b.name.length);
+  const pick = pickFrom[0] || models.find(m => can(m) && /gemini/.test(m.name));
+  if (!pick) throw { code: 'upstream_error', message: 'No Gemini model available for this key.' };
+  gemModel = pick.name;
+  return gemModel;
+}
+async function imageToB64(file) {
+  const bmp = await createImageBitmap(file);
+  const scale = Math.min(1, 2000 / Math.max(bmp.width, bmp.height));
+  const cv = document.createElement('canvas'); cv.width = Math.round(bmp.width * scale); cv.height = Math.round(bmp.height * scale);
+  cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+  const blob = await new Promise(res => cv.toBlob(res, 'image/jpeg', 0.9));
+  const buf = new Uint8Array(await blob.arrayBuffer()); let bin = '';
+  for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+async function gemJson(prompt, opts) {
+  const key = geminiKey(); if (!key) throw { code: 'no_key' };
+  const signal = opts && opts.signal;
+  try {
+    const model = await gemPickModel(key);
+    const parts = [];
+    for (const f of [].concat((opts && opts.images) || [])) { try { parts.push({ inline_data: { mime_type: 'image/jpeg', data: await imageToB64(f) } }); } catch (e) { throw { code: 'image_rejected' }; } }
+    parts.push({ text: prompt });
+    const r = await fetch(GEM + '/' + model + ':generateContent', { method: 'POST', signal, headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { responseMimeType: 'application/json', temperature: 0 } }) });
+    if (!r.ok) throw await gemFail(r);
+    const j = await r.json();
+    const cand = j.candidates && j.candidates[0];
+    const text = ((cand && cand.content && cand.content.parts) || []).map(p => p.text || '').join('').trim();
+    if (!text) throw { code: (j.promptFeedback && j.promptFeedback.blockReason) ? 'refused' : 'empty_completion' };
+    try { return JSON.parse(text); } catch (e) { const m = text.match(/[\[{][\s\S]*[\]}]/); if (m) { try { return JSON.parse(m[0]); } catch (e2) { /* fall through */ } } throw { code: 'invalid_json' }; }
+  } catch (e) {
+    if (e && (e.name === 'AbortError' || (signal && signal.aborted))) throw { code: 'cancelled' };
+    if (e && e.code) throw e;
+    throw { code: 'upstream_error', message: String((e && e.message) || e) };
+  }
+}
+function initSample() {
+  sampleFn = { json: gemJson, limits: async () => ({ images: IMG_LIMITS }) };
+  sampleImgs = IMG_LIMITS;
+}
+function promptFor(kind, n) {
+  return 'You are reading ' + n + ' screenshot' + (n > 1 ? 's' : '') + ' from the mobile strategy game "Last War: Survival".\n' +
+    'An alliance officer says they show ' + KINDS[kind].desc + '.\n\n' +
+    'Read every player row you can see in every screenshot. For each player give:\n' +
+    '- "name": the player name exactly as shown. Keep every letter, digit and symbol, in any language or script. Leave out an alliance tag in square brackets such as [0NE1].\n' +
+    '- "power": the power figure on that player\'s row, written as shown (for example "52.4M" or "52,431,220"). If the row shows more than one figure, use the one labelled power, 1st team or squad 1. Use "" when there is none.\n' +
+    '- "role": "main" if the player is listed as a starter, main or participant; "sub" if listed under substitutes or reserves; "" if the screen does not say.\n' +
+    'Ignore headers, buttons, menus, the phone status bar, and rows cut off so much that the name cannot be read. List a player once even if they appear in two screenshots.\n\n' +
+    (kind === 'members' ? '' : 'Battle scores, points or kills are not power: leave "power" empty for them.\n') +
+    'Reply with only JSON in this shape:\n{"screen": "one short sentence on what the screenshots show", "rows": [{"name": "IronFalcon", "power": "52.4M", "role": "main"}]}';
+}
+function sampleErrorText(e) {
+  const c = e && e.code;
+  if (c === 'no_key') return 'Add a Gemini API key in step 06 first. You can still type names below.';
+  if (c === 'bad_key') return 'Gemini refused the API key. Check it in step 06.';
+  if (c === 'region') return 'Gemini is not available in this region for this key. Another R4 in a supported country can upload instead.';
+  if (c === 'rate_limited') return 'The free Gemini limit was reached. Wait a minute and try again, or upload fewer screenshots at a time.';
+  if (c === 'image_rejected') return 'One of the screenshots could not be opened. Remove it and try again.';
+  if (c === 'refused') return 'Gemini declined to read these screenshots. Try different ones.';
+  if (c === 'invalid_json' || c === 'empty_completion') return 'No players could be read from these screenshots. Try clearer screenshots, or fewer at a time.';
+  return 'Something went wrong while reading' + (e && e.message ? ' (' + String(e.message).slice(0, 120) + ')' : '') + '. Try again.';
+}
+async function readShots() {
+  const sh = state.shots; if (!sampleFn || !sh.files.length || sh.busy) return;
+  const files = sh.files.map(f => f.file);
+  const per = Math.max(1, Math.min((sampleImgs && sampleImgs.maxCount) || 1, 5));
+  sh.busy = true; sh.error = ''; sh.ctl = new AbortController();
+  const rows = []; let screen = '';
+  for (let i = 0; i < files.length; i += per) {
+    if (sh.ctl.signal.aborted) break;
+    const batch = files.slice(i, i + per);
+    sh.progress = files.length > per ? 'Reading screenshots ' + (i + 1) + '–' + (i + batch.length) + ' of ' + files.length + '…' : 'Reading ' + files.length + ' screenshot' + (files.length > 1 ? 's' : '') + '…';
+    renderShots();
+    try {
+      const out = await sampleFn.json(promptFor(sh.kind, batch.length), { images: batch, signal: sh.ctl.signal, modelTier: 'default' });
+      const rr = out && Array.isArray(out.rows) ? out.rows : [];
+      rr.forEach(r => { if (r && typeof r.name === 'string' && r.name.trim()) rows.push({ name: r.name.trim(), power: String(r.power == null ? '' : r.power).trim(), role: r.role === 'sub' ? 'sub' : r.role === 'main' ? 'main' : '' }); });
+      if (out && typeof out.screen === 'string' && !screen) screen = out.screen;
+    } catch (e) {
+      if (e && e.code === 'cancelled') break;
+      sh.error = sampleErrorText(e) + (rows.length ? ' The players read so far are below.' : '');
+      break;
+    }
+  }
+  sh.busy = false; sh.progress = '';
+  if (rows.length) { buildReview(rows, screen, files.length + ' screenshot' + (files.length > 1 ? 's' : '')); }
+  else if (!sh.error && !(sh.ctl && sh.ctl.signal.aborted)) sh.error = 'No players were found in these screenshots.';
+  render();
+  if (rows.length) $('review').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ================= review =================
+function matchMember(name, members) {
+  const k = normKey(name), a = alnum(name);
+  const exact = members.find(m => m.key === k) || (a && members.find(m => alnum(m.name) === a));
+  if (exact) return { target: exact.key, how: 'exact', cands: [exact.key] };
+  const scored = members.map(m => ({ k: m.key, s: sim(name, m.name) })).sort((x, y) => y.s - x.s);
+  const cands = scored.slice(0, 6).filter(x => x.s > 0.3).map(x => x.k);
+  if (scored[0] && scored[0].s >= 0.72) return { target: scored[0].k, how: 'close', cands };
+  return { target: '', how: 'new', cands };
+}
+function battleOptions(evId) {
+  const w = effectiveWork(evId);
+  const opts = [];
+  if (w.date <= todayIso()) opts.push({ v: 'current', label: (w.date === todayIso() ? "Today's battle" : 'The battle on') + ' ' + fmtDay(w.date) + ' (also starts the next roster)' });
+  const prev = (S().saved[evId] || []).find(h => h.date < w.date);
+  opts.push({ v: 'previous', label: 'The last event before ' + fmtDay(w.date) + (prev ? ' (' + fmtDay(prev.date) + ')' : '') });
+  return opts;
+}
+function buildReview(raw, screen, sourceLabel) {
+  const sh = state.shots; const kind = sh.kind; const src = S();
+  const realMembers = src.example ? [] : src.members;
+  const seen = new Map();
+  raw.forEach(r => { const a = alnum(r.name); if (!a) return; const ex = seen.get(a); if (!ex) seen.set(a, Object.assign({}, r)); else { if (!ex.power && r.power) ex.power = r.power; if (!ex.role && r.role) ex.role = r.role; } });
+  const rows = Array.from(seen.values()).map(r => {
+    const m = matchMember(r.name, realMembers);
+    const isTeam = kind === 'A' || kind === 'B';
+    let target = m.target;
+    if (!target) target = (kind === 'members' || !realMembers.length) ? '+new' : '-ignore';
+    return { name: r.name, power: r.power, role: isTeam ? (r.role === 'sub' ? 'sub' : 'main') : r.role, target, how: m.how, cands: m.cands };
+  });
+  rows.sort((x, y) => ({ close: 0, new: 1, exact: 2 }[x.how] - { close: 0, new: 1, exact: 2 }[y.how]) || x.name.localeCompare(y.name));
+  const bo = battleOptions(state.event);
+  sh.review = { kind, ev: state.event, rows, screen, sourceLabel, removeMissing: false, replaceTeam: true, battle: bo[0].v };
+}
+function reviewEffects(R) {
+  const src = S(); const realMembers = src.example ? [] : src.members;
+  const used = new Set(R.rows.filter(r => r.target && r.target[0] !== '-' && r.target[0] !== '+').map(r => r.target));
+  const out = { matched: 0, close: 0, added: 0, ignored: 0, missing: [], noShows: [], subsFought: [] };
+  R.rows.forEach(r => {
+    if (r.target === '-ignore') out.ignored++;
+    else if (r.target === '+new') out.added++;
+    else { out.matched++; if (r.how === 'close' && r.target === (r.cands[0] || '')) out.close++; }
+  });
+  out.missing = realMembers.filter(m => !used.has(m.key));
+  if (R.kind === 'results') {
+    // whose lineup are we checking?
+    let lineup = {};
+    if (R.battle === 'current') { const r = buildRoster(membersFor(R.ev), effectiveWork(R.ev).settings); realMembers.forEach(m => { lineup[m.hk] = r.assign[m.key] ? r.assign[m.key].slot : ''; }); }
+    else { const w = effectiveWork(R.ev); realMembers.forEach(m => { lineup[m.hk] = w.last[m.hk] || ''; }); }
+    realMembers.forEach(m => {
+      const s = lineup[m.hk];
+      if ((s === 'AM' || s === 'BM') && !used.has(m.key)) out.noShows.push(m);
+      if ((s === 'AS' || s === 'BS') && used.has(m.key)) out.subsFought.push(m);
+    });
+  }
+  return out;
+}
+async function applyReview() {
+  const R = state.shots.review; if (!R) return;
+  const evId = R.ev; const src0 = S();
+  // Leaving the example: start a clean shared record
+  if (src0.example) {
+    state.local = blankSource();
+    if (state.mode === 'db') state.remoteActive = true;
+  }
+  const src = S();
+  let members = src.members.map(m => Object.assign({}, m));
+  const byKey = new Map(members.map(m => [m.key, m]));
+  const live = R.rows.filter(r => r.target !== '-ignore');
+  const powers = normalisePowers(live.map(r => r.power));
+  let added = 0, updated = 0, removed = 0;
+  const found = new Map();
+  live.forEach((r, i) => {
+    let key = r.target;
+    if (key === '+new') {
+      const nm = mk(r.name, R.kind === 'members' ? (powers[i] || 0) : 0);
+      if (!nm.key) return;
+      if (!byKey.has(nm.key)) { members.push(nm); byKey.set(nm.key, nm); added++; }
+      key = nm.key;
+    } else {
+      const m = byKey.get(key);
+      if (R.kind === 'members' && m && powers[i] && Math.round(m.power / 1e5) !== Math.round(powers[i] / 1e5)) { m.power = powers[i]; updated++; }
+    }
+    found.set(key, r);
+  });
+  if (R.kind === 'members' && R.removeMissing) { const keep = members.filter(m => found.has(m.key)); removed = members.length - keep.length; members = keep; }
+  const what = R.sourceLabel;
+  if (added || updated || removed) {
+    const parts = []; if (updated) parts.push('updated power for ' + updated); if (added) parts.push('added ' + added); if (removed) parts.push('removed ' + removed);
+    const txt = parts.join(', ').replace(/^./, c => c.toUpperCase()) + ' member' + ((updated || added || removed) === 1 ? '' : 's') + ' from ' + what;
+    await setMembers(members, txt);
+  }
+  if (R.kind !== 'members') {
+    if (R.battle === 'current') await rollForward(evId);
+    const w = effectiveWork(evId);
+    const patch = { last: {}, gap: {} };
+    const gapNow = h => (w.gap[h] !== undefined && w.gap[h] !== null && w.gap[h] !== '' ? +w.gap[h] : null);
+    let txt = '';
+    if (R.kind === 'A' || R.kind === 'B') {
+      const T = R.kind;
+      if (R.replaceTeam) members.forEach(m => { const l = w.last[m.hk] || ''; if (l[0] === T && !found.has(m.key)) { patch.last[m.hk] = 'OUT'; const g = gapNow(m.hk); patch.gap[m.hk] = g > 0 ? g : 1; } });
+      let nM = 0, nS = 0;
+      found.forEach((r, key) => { const h = hk(key); const sub = r.role === 'sub'; patch.last[h] = T + (sub ? 'S' : 'M'); const g = gapNow(h); patch.gap[h] = sub ? (g > 0 ? g : 1) : 0; if (sub) nS++; else nM++; });
+      txt = 'Set the Team ' + T + ' lineup of the last event (' + nM + ' main, ' + nS + ' subs) from ' + what;
+    } else {
+      let ns = 0, credit = 0;
+      members.forEach(m => {
+        const l = w.last[m.hk] || '';
+        if ((l === 'AM' || l === 'BM') && !found.has(m.key)) { patch.last[m.hk] = 'NS'; ns++; }
+        if ((l === 'AS' || l === 'BS') && found.has(m.key)) { patch.last[m.hk] = l[0] + 'M'; patch.gap[m.hk] = 0; credit++; }
+      });
+      txt = 'Checked battle results from ' + what + ': ' + ns + ' no-show' + (ns === 1 ? '' : 's') + (credit ? ', ' + credit + ' sub' + (credit === 1 ? '' : 's') + ' who fought' : '');
+    }
+    await patchWork(evId, patch, txt);
+  }
+  clearShots(); state.shots.review = null;
+  toast('Applied. Every R4 now sees the update.');
+  render();
+}
+
+// ================= paste fallback =================
+const looksNumeric = v => /^\s*[0-9][0-9.,]*\s*[kmbg]?\s*$/i.test(String(v));
+function pasteRows(text) {
+  const lines = String(text || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const out = [];
+  lines.forEach(line => {
+    let cells = line.includes('\t') ? line.split('\t') : line.includes(',') && !/\d,\d{3}/.test(line) ? line.split(',') : null;
+    if (!cells) { const m = /^(.*?)[\s:;-]+([0-9][0-9.,]*\s*[kmbKMB]?)\s*$/.exec(line); cells = m ? [m[1], m[2]] : [line]; }
+    cells = cells.map(c => c.trim());
+    const name = cells[0]; if (!name || /^(name|member|player)s?$/i.test(name)) return;
+    let power = '', role = '';
+    cells.slice(1).forEach(c => { if (!power && looksNumeric(c)) power = c; else if (!role) { const st = normStatus(c); if (st) role = st[1] === 'S' ? 'sub' : 'main'; } });
+    out.push({ name, power, role });
+  });
+  return out;
+}
+
+// ================= rendering =================
+function render() {
+  const connected = state.mode === 'db';
+  const showApp = connected || state.view === 'app';
+  $('gate').classList.toggle('hidden', showApp);
+  document.querySelectorAll('.app-only').forEach(el => el.classList.toggle('hidden', !showApp));
+  $('s6-panel').classList.toggle('hidden', !connected);
+  $('btn-example').classList.toggle('hidden', connected);
+  renderGate(); renderSettings();
+  const E = EVENTS[state.event]; const w = curWork(); const s = w.settings;
+  document.documentElement.setAttribute('data-event', state.event);
+  $('ev-ds').setAttribute('aria-pressed', String(state.event === 'ds'));
+  $('ev-cs').setAttribute('aria-pressed', String(state.event === 'cs'));
+  $('battle-date').value = w.date; $('battle-date').disabled = !state.canWrite;
+  $('facts').innerHTML = E.facts.map(f => '<span><span class="dot"></span>' + f + '</span>').join('');
+  $('rules-for').textContent = 'Rules for ' + E.name + ' · shared by all R4s';
+  $('core').value = s.core;
+  $('split-tiered').setAttribute('aria-pressed', String(s.split === 'tiered'));
+  $('split-balanced').setAttribute('aria-pressed', String(s.split === 'balanced'));
+  $('split-help').textContent = s.split === 'tiered' ? 'Team A gets the highest-power players of this week. Team B gets the rest.' : 'Both teams get about the same total power.';
+  $('teams-ab').setAttribute('aria-pressed', String(s.teamB)); $('teams-a').setAttribute('aria-pressed', String(!s.teamB));
+  $('ns-on').setAttribute('aria-pressed', String(s.noShowPenalty)); $('ns-off').setAttribute('aria-pressed', String(!s.noShowPenalty));
+  document.querySelectorAll('.rules button, .rules input').forEach(el => { el.disabled = !state.canWrite; });
+  $('btn-save').classList.toggle('hidden', !state.canWrite);
+  $('btn-save').textContent = (S().saved[state.event] || []).some(h => h.date === w.date) ? 'Update saved roster' : 'Save roster';
+  $('shots-ui').classList.toggle('hidden', !state.canWrite);
+  $('ro-note').classList.toggle('hidden', state.canWrite);
+  state.result = buildRoster(membersFor(state.event), s);
+  renderStatus(); renderBanners(); renderShots(); renderRoster(state.result); renderLedger(state.result); renderHistory(); renderLog(); renderSync();
+}
+
+function renderSync() {
+  const el = $('sync'); const t = $('sync-text');
+  if (state.mode !== 'db') { el.className = 'sync'; t.textContent = state.local.example ? 'Example data · not connected to an alliance space' : 'Not connected'; return; }
+  if (connErr) { el.className = 'sync ro'; t.textContent = 'Connection problem: see the message below'; return; }
+  el.className = 'sync shared';
+  const last = (state.remote.log || [])[0];
+  t.textContent = 'Shared with your R4s · changes show up live' + (last ? ' · last change ' + ago(last.at) + (last.by ? ' by ' + last.by : '') : '');
+}
+
+function renderStatus() {
+  const src = S(); const sm = $('st-members');
+  let mt = 'No members yet. Upload member list screenshots to start.', mk2 = '';
+  if (src.example) { mt = 'Showing 100 made-up members. Connect to your alliance space to use real data.'; mk2 = ''; }
+  else if (state.mode === 'db' && !state.remoteSeen.members) { mt = 'Loading shared data…'; }
+  else if (src.members.length) { mt = src.members.length + ' members' + (src.membersMeta && src.membersMeta.updatedAt ? ' · power updated ' + ago(src.membersMeta.updatedAt) : ''); mk2 = 'ok'; }
+  sm.className = 'status-line ' + mk2; sm.lastElementChild.textContent = mt;
+  const ms = membersFor(state.event); const c = { M: 0, S: 0, NS: 0 };
+  ms.forEach(m => { if (m.last === 'AM' || m.last === 'BM') c.M++; else if (m.last === 'AS' || m.last === 'BS') c.S++; else if (m.last === 'NS') c.NS++; });
+  const sl = $('st-last');
+  const prev = (src.saved[state.event] || []).find(h => h.date < curWork().date);
+  let lt;
+  if (!c.M && !c.S && !c.NS) lt = 'Last event: nothing on record, so everyone counts as having sat out once. Upload the Team A and Team B lineups to set it.';
+  else lt = 'Last event' + (prev ? ' (' + fmtDay(prev.date) + ')' : '') + ': ' + c.M + ' main, ' + c.S + ' subs' + (c.NS ? ', ' + c.NS + ' no-show' + (c.NS > 1 ? 's' : '') : '');
+  sl.className = 'status-line ' + (c.M || c.S || c.NS ? 'ok' : ''); sl.lastElementChild.textContent = lt;
+}
+
+function renderBanners() {
+  const b = []; const E = EVENTS[state.event]; const src = S(); const w = curWork();
+  if (connErr) b.push('<div class="banner warn"><p>' + esc(connErr) + '</p></div>');
+  if (src.example) b.push('<div class="banner"><p><b>Example alliance.</b> These 100 members are made up so you can see how it works. Nothing here is saved or shared.</p><button class="btn primary" type="button" id="btn-to-gate">Connect to your alliance</button></div>');
+  if (state.mode === 'db' && !state.remoteActive && !state.local.example && state.local.members.length && state.canWrite) {
+    b.push('<div class="banner"><p>Your member list is only on this device. Share it so other R4s see the same data.</p><button class="btn primary" type="button" id="btn-share">Share with R4s</button></div>');
+  }
+  if (!src.example && w.date < todayIso() && state.canWrite) {
+    b.push('<div class="banner"><p>The <b>' + esc(fmtDay(w.date)) + '</b> battle is over. Start the next roster: this lineup becomes the last event. Upload the battle results first if you want no-shows marked.</p><button class="btn primary" type="button" id="btn-roll">Start the ' + esc(fmtShort(nextDate(w.date))) + ' roster</button></div>');
+  } else if (!src.example && w.date === todayIso()) {
+    b.push('<div class="banner"><p><b>Battle day.</b> After the battle, upload the results screenshots (step 1, Battle results) to mark no-shows.</p></div>');
+  }
+  if (state.event === 'cs') b.push('<div class="banner"><p>Canyon Storm only runs in the off-season. Its last event is tracked separately from Desert Storm.</p></div>');
+  $('banners').innerHTML = b.join('');
+  const share = $('btn-share'); if (share) share.onclick = () => shareLocal();
+  const tg = $('btn-to-gate'); if (tg) tg.onclick = () => { state.view = 'gate'; render(); window.scrollTo(0, 0); };
+  const roll = $('btn-roll'); if (roll) roll.onclick = async () => { roll.disabled = true; await rollForward(state.event); toast('Started the next roster'); };
+}
+
+function renderShots() {
+  const sh = state.shots; const K = KINDS[sh.kind];
+  $('kinds').innerHTML = Object.keys(KINDS).map(k => '<button type="button" class="kind" data-kind="' + k + '" aria-pressed="' + (k === sh.kind) + '"><b>' + esc(KINDS[k].title) + '</b><span>' + esc(KINDS[k].sub) + '</span></button>').join('');
+  const canRead = state.mode === 'db' && !!geminiKey();
+  let help = K.help;
+  if (state.mode !== 'db') help = 'Connect to your alliance space to read screenshots. You can still type names below.';
+  else if (!geminiKey()) help = 'To read screenshots, add a free Gemini API key in step 06 (one R4 does this once for everyone). You can still type names below.';
+  $('kind-help').textContent = help;
+  $('thumbs').innerHTML = sh.files.map((f, i) => '<div class="thumb"><img src="' + f.url + '" alt="Screenshot ' + (i + 1) + '"><button type="button" data-rm="' + i + '" aria-label="Remove screenshot ' + (i + 1) + '">×</button></div>').join('');
+  $('btn-read').classList.toggle('hidden', !sh.files.length || sh.busy || !canRead);
+  $('btn-read').textContent = 'Read ' + sh.files.length + ' screenshot' + (sh.files.length === 1 ? '' : 's');
+  $('btn-clear-shots').classList.toggle('hidden', !sh.files.length || sh.busy);
+  document.querySelector('label[for="file-shots"]').classList.toggle('hidden', sh.busy || !canRead);
+  $('progress').classList.toggle('hidden', !sh.busy); $('progress-text').textContent = sh.progress;
+  const er = $('shot-error'); er.classList.toggle('hidden', !sh.error); er.lastElementChild.textContent = sh.error;
+  if (sampleImgs) $('file-shots').accept = (sampleImgs.mediaTypes || ['image/png', 'image/jpeg', 'image/webp']).join(',');
+  const ae = document.activeElement;
+  if (!(state.shots.review && ae && $('review').contains(ae) && /INPUT|SELECT/.test(ae.tagName))) renderReview();
+}
+
+function renderReview() {
+  const R = state.shots.review; const box = $('review');
+  if (!R) { box.innerHTML = ''; return; }
+  const src = S(); const members = (src.example ? [] : src.members).slice().sort((a, b) => a.name.localeCompare(b.name));
+  const byKey = new Map(members.map(m => [m.key, m]));
+  const fx = reviewEffects(R);
+  const isTeam = R.kind === 'A' || R.kind === 'B';
+  const showPower = R.kind === 'members';
+  const rowsHtml = R.rows.map((r, i) => {
+    const opts = ['<option value="-ignore"' + (r.target === '-ignore' ? ' selected' : '') + '>Ignore this row</option>', '<option value="+new"' + (r.target === '+new' ? ' selected' : '') + '>Add as new member</option>'];
+    const candSet = new Set(r.cands);
+    if (r.cands.length) { opts.push('<optgroup label="Closest names">' + r.cands.map(k => byKey.get(k)).filter(Boolean).map(m => '<option value="' + esc(m.key) + '"' + (r.target === m.key ? ' selected' : '') + '>' + esc(m.name) + '</option>').join('') + '</optgroup>'); }
+    opts.push('<optgroup label="All members">' + members.filter(m => !candSet.has(m.key)).map(m => '<option value="' + esc(m.key) + '"' + (r.target === m.key ? ' selected' : '') + '>' + esc(m.name) + '</option>').join('') + '</optgroup>');
+    let badge;
+    if (r.target === '-ignore') badge = '<span class="badge ignore">Ignored</span>';
+    else if (r.target === '+new') badge = '<span class="badge new">New</span>';
+    else if (r.how === 'exact') badge = '<span class="badge exact">Match</span>';
+    else badge = '<span class="badge close">Check</span>';
+    const cur = byKey.get(r.target);
+    const powerCell = showPower ? '<td><input type="text" value="' + esc(r.power) + '" data-ri="' + i + '" data-rf="power" aria-label="Power read for ' + esc(r.name) + '">' + (cur && cur.power ? ' <span class="muted" style="font-size:12px">was ' + fmtPower(cur.power) + '</span>' : '') + '</td>' : '';
+    const roleCell = isTeam ? '<td><select data-ri="' + i + '" data-rf="role" aria-label="Role for ' + esc(r.name) + '"><option value="main"' + (r.role !== 'sub' ? ' selected' : '') + '>Main</option><option value="sub"' + (r.role === 'sub' ? ' selected' : '') + '>Sub</option></select></td>' : '';
+    return '<tr><td>' + badge + '</td><td>' + esc(r.name) + '</td><td><select data-ri="' + i + '" data-rf="target" aria-label="Member for ' + esc(r.name) + '">' + opts.join('') + '</select></td>' + powerCell + roleCell + '</tr>';
+  }).join('');
+  let optsHtml = '';
+  if (R.kind === 'members') {
+    optsHtml += '<label class="check"><input type="checkbox" id="rv-remove"' + (R.removeMissing ? ' checked' : '') + '><span>Remove the <b>' + fx.missing.length + '</b> members who are not in these screenshots (they left the alliance). Leave unticked if you only uploaded part of the list.</span></label>';
+  } else {
+    const bo = battleOptions(R.ev);
+    optsHtml += '<label class="field" for="rv-battle"><span class="label">Which battle is this from?</span><select id="rv-battle">' + bo.map(o => '<option value="' + o.v + '"' + (o.v === R.battle ? ' selected' : '') + '>' + esc(o.label) + '</option>').join('') + '</select></label>';
+    if (isTeam) optsHtml += '<label class="check"><input type="checkbox" id="rv-replace"' + (R.replaceTeam ? ' checked' : '') + '><span>Replace the whole Team ' + R.kind + ' list: anyone in Team ' + R.kind + ' who is not in these screenshots counts as sat out. Untick if you are adding more screenshots to a list you already uploaded.</span></label>';
+    if (R.kind === 'results') {
+      optsHtml += '<p style="margin:0;font-size:14px"><b>Will be marked No-show (' + fx.noShows.length + '):</b> ' + (fx.noShows.length ? esc(fx.noShows.map(m => m.name).join(', ')) : 'nobody') + '</p>';
+      if (fx.subsFought.length) optsHtml += '<p style="margin:0;font-size:14px"><b>Subs who fought, counted as main (' + fx.subsFought.length + '):</b> ' + esc(fx.subsFought.map(m => m.name).join(', ')) + '</p>';
+      optsHtml += '<p class="muted" style="margin:0;font-size:13px">Make sure every page of the results is included, or players on missing pages get marked No-show.</p>';
+    }
+  }
+  box.innerHTML = '<div class="review"><div class="review-h"><h3>Check before applying · ' + esc(KINDS[R.kind].title) + ' · ' + esc(EVENTS[R.ev].name) + '</h3>' +
+    (R.screen ? '<span class="muted" style="font-size:13.5px">Gemini saw: ' + esc(R.screen) + '</span>' : '') +
+    '<div class="counts"><span><b>' + R.rows.length + '</b> players read</span><span><b>' + fx.matched + '</b> matched</span>' + (fx.close ? '<span style="color:var(--accent)"><b>' + fx.close + '</b> close matches to check</span>' : '') + '<span><b>' + fx.added + '</b> new</span><span><b>' + fx.ignored + '</b> ignored</span></div>' +
+    '<span class="muted" style="font-size:13px">Names can be misread. Check rows marked <b>Check</b> and <b>New</b>, and pick the right member if needed.</span></div>' +
+    '<div class="table-wrap" style="margin:0;border:0;border-radius:0"><table><thead><tr><th></th><th>Read from screenshot</th><th>Member</th>' + (showPower ? '<th>Power</th>' : '') + (isTeam ? '<th>Role</th>' : '') + '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div>' +
+    '<div class="review-opts">' + optsHtml + '</div>' +
+    '<div class="review-f"><span class="muted" style="font-size:13px">Applying updates the shared data for every R4.</span><span class="actions"><button class="btn ghost" type="button" id="rv-discard">Discard</button><button class="btn accent" type="button" id="rv-apply">Apply</button></span></div></div>';
+  $('rv-apply').onclick = async e => { e.target.disabled = true; await applyReview(); };
+  $('rv-discard').onclick = () => { state.shots.review = null; renderReview(); };
+  const rm = $('rv-remove'); if (rm) rm.onchange = e => { R.removeMissing = e.target.checked; };
+  const rp = $('rv-replace'); if (rp) rp.onchange = e => { R.replaceTeam = e.target.checked; };
+  const rb = $('rv-battle'); if (rb) rb.onchange = e => { R.battle = e.target.value; renderReview(); };
+}
+
+function rosterRow(m, i, a) {
+  let tagCls = a.tag.toLowerCase().replace(/[^a-z]/g, '');
+  if (a.tag === 'Waited 1' || a.tag === 'Spare') tagCls = '';
+  return '<li title="' + esc(a.reason) + '"><span class="n">' + (i + 1) + '</span><span class="nm">' + esc(m.name) + '</span><span class="pw">' + fmtPower(m.power) + '</span><span class="tag ' + tagCls + '">' + esc(a.tag) + '</span></li>';
+}
+function group(title, list, cap, assign) {
+  let rows = list.map((m, i) => rosterRow(m, i, assign[m.key])).join('');
+  if (!list.length) rows = '<li class="empty"><span></span><span>Nobody</span></li>';
+  return '<div class="group-h' + (list.length === cap ? ' full' : '') + '"><span>' + title + '</span><span class="cnt">' + list.length + ' / ' + cap + '</span></div><ol class="roster">' + rows + '</ol>';
+}
+const sumP = l => l.reduce((s, m) => s + m.power, 0);
+function renderRoster(r) {
+  const E = EVENTS[state.event]; const s = settings();
+  $('roster-title').textContent = E.name + ' roster · ' + fmtDay(curWork().date);
+  const reg = r.teams.AM.length + r.teams.AS.length + r.teams.BM.length + r.teams.BS.length; const mains = r.teams.AM.length + r.teams.BM.length;
+  $('summary').innerHTML = [['Registered', reg], ['Main', mains], ['Subs', reg - mains], ['Sitting out', r.out.length], ['Away', r.unavailable.length]].map(([l, v]) => '<span class="item"><span class="big">' + v + '</span><span class="label">' + l + '</span></span>').join('');
+  const warns = r.warnings.slice(); if (!S().members.length) warns.unshift('Upload your member list in step 1.');
+  $('warnings').innerHTML = warns.map(w => '<div class="banner warn"><p>' + esc(w) + '</p></div>').join('');
+  const board = (t, cls, M, Sb, capM, capS) => { const tot = sumP(M); const avg = M.length ? tot / M.length : 0; return '<div class="board ' + cls + '"><div class="board-h"><h3>Team ' + t + '</h3><div class="meta">Main power <b>' + fmtPower(tot) + '</b><br>Avg <b>' + fmtPower(avg) + '</b> · Top <b>' + fmtPower(M[0] ? M[0].power : 0) + '</b></div></div>' + group('Main', M, capM, r.assign) + group('Subs', Sb, capS, r.assign) + '</div>'; };
+  let html = board('A', 'a', r.teams.AM, r.teams.AS, r.cap.AM, r.cap.AS);
+  if (s.teamB) html += board('B', 'b', r.teams.BM, r.teams.BS, r.cap.BM, r.cap.BS);
+  $('boards').innerHTML = html;
+  const nextUp = r.out.filter(m => r.assign[m.key].tag === 'Next').length;
+  $('bench-title').textContent = 'Sitting out' + (nextUp ? ' · ' + nextUp + ' first in line next time' : '');
+  $('bench-count').textContent = r.out.length + (r.unavailable.length ? ' + ' + r.unavailable.length + ' away' : '');
+  const chip = (m, cls) => { const a = r.assign[m.key]; const t = a.tag; const tagHtml = cls === 'unav' ? '' : '<span class="tag ' + (t === 'Next' ? 'next' : t === 'No-show' ? 'noshow' : '') + '">' + esc(t) + '</span>'; return '<span class="chip ' + (cls || '') + '" title="' + esc(a.reason) + '">' + esc(m.name) + ' <span class="pw">' + fmtPower(m.power) + '</span>' + tagHtml + '</span>'; };
+  let bench = '';
+  if (r.out.length) bench += '<div class="chips">' + r.out.map(m => chip(m)).join('') + '</div>';
+  if (r.unavailable.length) bench += '<span class="label">Away</span><div class="chips">' + r.unavailable.map(m => chip(m, 'unav')).join('') + '</div>';
+  if (!bench) bench = '<span class="muted">Nobody sits out this time.</span>';
+  bench += '<p class="muted" style="margin:0;font-size:13px"><span class="tag next">Next</span> waited but no slot was left; first in line next time. <span class="tag">Rest</span> played main last time.</p>';
+  $('bench').innerHTML = bench;
+}
+
+function historyFor(key) {
+  const w = curWork(); const all = S().saved[state.event] || [];
+  const list = all.filter(h => h.date < w.date).slice(0, 4).reverse();
+  return list.map((h, i) => {
+    const row = h.rowsByKey[key];
+    const newer = list[i + 1] || all.find(x => x.date === w.date);
+    let ns = false;
+    if (i === list.length - 1) ns = (w.last[hk(key)] || '') === 'NS';
+    else if (newer && newer.rowsByKey[key]) ns = newer.rowsByKey[key].l === 'NS';
+    if (!row) return { c: '', t: fmtShort(h.date) + ': not in the alliance' };
+    const sl = row.s;
+    const c = ns ? 'NS' : (sl === 'AM' || sl === 'BM') ? 'M' : (sl === 'AS' || sl === 'BS') ? 'S' : sl === 'X' ? 'X' : '';
+    return { c, t: fmtShort(h.date) + ': ' + (ns ? 'No-show' : (SLOT_LABEL[sl] || sl)) };
+  });
+}
+function renderLedger(r) {
+  const w = curWork();
+  const showHist = (S().saved[state.event] || []).some(h => h.date < w.date);
+  document.querySelectorAll('.hist-col').forEach(el => el.classList.toggle('hidden', !showHist));
+  $('legend').classList.toggle('hidden', !showHist);
+  const qy = state.search.trim().toLowerCase();
+  const ms = membersFor(state.event).sort((a, b) => b.power - a.power || a.name.localeCompare(b.name));
+  const rank = new Map(ms.map((m, i) => [m.key, i + 1]));
+  const dis = state.canWrite ? '' : ' disabled';
+  const rows = ms.filter(m => {
+    const sl = r.assign[m.key] ? r.assign[m.key].slot : '';
+    if (qy && !m.name.toLowerCase().includes(qy)) return false;
+    if (state.filter === 'A') return sl === 'AM' || sl === 'AS';
+    if (state.filter === 'B') return sl === 'BM' || sl === 'BS';
+    if (state.filter === 'OUT') return sl === 'OUT';
+    if (state.filter === 'X') return sl === 'X';
+    return true;
+  }).map(m => {
+    const a = r.assign[m.key];
+    const sel = (opts, val, attr) => '<select ' + attr + dis + '>' + opts.map(([v, l]) => '<option value="' + v + '"' + (v === val ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>';
+    const pips = showHist ? '<td><span class="pips">' + historyFor(m.key).map(p => '<i class="' + p.c + '" title="' + esc(p.t) + '"></i>').join('') + '</span></td>' : '';
+    return '<tr><td class="r num muted">' + rank.get(m.key) + '</td><td>' + esc(m.name) + '</td><td class="r num">' + fmtPower(m.power) + '</td>' +
+      '<td>' + sel(STATUS_OPTS, m.last, 'data-h="' + m.hk + '" data-n="' + esc(m.name) + '" data-act="last" aria-label="Last event for ' + esc(m.name) + '"') + '</td>' +
+      '<td class="r"><input type="number" min="0" max="99" value="' + gapOf(m) + '" data-h="' + m.hk + '" data-n="' + esc(m.name) + '" data-act="gap" aria-label="Events waited by ' + esc(m.name) + '"' + dis + '></td>' + pips +
+      '<td>' + sel(OV_OPTS, m.ov, 'data-h="' + m.hk + '" data-n="' + esc(m.name) + '" data-act="ov" aria-label="Officer setting for ' + esc(m.name) + '"') + '</td>' +
+      '<td><span class="pill ' + a.slot + '">' + esc(SLOT_LABEL[a.slot]) + '</span></td><td class="why">' + esc(a.reason) + '</td></tr>';
+  });
+  $('ledger').innerHTML = rows.join('') || '<tr><td colspan="9" class="muted">No members match.</td></tr>';
+}
+
+function renderHistory() {
+  const list = S().saved[state.event] || []; const w = curWork();
+  $('history-note').textContent = list.length ? 'The newest roster before the battle date counts as the last event.' : 'Nothing saved for ' + EVENTS[state.event].name + ' yet. Press Save roster in step 3 once the lineup is registered.';
+  const lastIdx = list.findIndex(x => x.date < w.date);
+  $('history').innerHTML = list.map((h, i) => {
+    const c = { M: 0, S: 0, O: 0 };
+    h.rows.forEach(x => { if (x.s === 'AM' || x.s === 'BM') c.M++; else if (x.s === 'AS' || x.s === 'BS') c.S++; else c.O++; });
+    return '<li><span><span class="when">' + esc(fmtDay(h.date)) + '</span> <span class="muted">· ' + c.M + ' main · ' + c.S + ' subs · ' + c.O + ' out' + (i === lastIdx ? ' · <b>last event</b>' : '') + (h.date === w.date ? ' · <b>this battle</b>' : '') + '</span></span>' +
+      '<span class="actions"><button class="btn" type="button" data-hview="' + esc(h.date) + '">View</button>' + (state.canWrite ? '<button class="btn danger" type="button" data-hdel="' + esc(h.date) + '">Delete</button>' : '') + '</span></li>';
+  }).join('');
+}
+
+function initials(n) { const p = String(n || '?').trim().split(/\s+/); return ((p[0] || '?')[0] + (p[1] ? p[1][0] : '')).toUpperCase(); }
+function hueOf(n) { let h = 0; for (const ch of String(n)) h = (h * 31 + ch.codePointAt(0)) % 360; return h; }
+function renderLog() {
+  const items = S().log || []; const el = $('log');
+  if (!items.length) { el.innerHTML = '<li style="grid-template-columns:1fr" class="muted">No changes yet.</li>'; return; }
+  const me = myName();
+  el.innerHTML = '';
+  items.forEach(x => {
+    const li = document.createElement('li');
+    const av = document.createElement('span'); av.className = 'av'; av.textContent = initials(x.by || '?'); av.style.background = x.by ? 'hsl(' + hueOf(x.by) + ' 45% 45%)' : 'var(--muted)';
+    const d = document.createElement('div');
+    const who = document.createElement('b'); who.textContent = x.by ? (x.by === me ? 'You' : x.by) : 'An R4';
+    const txt = document.createTextNode(' · ' + String(x.text || '').replace(/^./, c => c.toLowerCase()) + ' ');
+    const t = document.createElement('span'); t.className = 't'; t.textContent = (x.ev && EVENTS[x.ev] ? EVENTS[x.ev].name + ' · ' : '') + ago(x.at);
+    d.append(who, txt, document.createElement('br'), t); li.append(av, d); el.append(li);
+  });
+}
+
+// ================= outputs =================
+function mailText(r) {
+  const E = EVENTS[state.event]; const lines = ['ONE1 · ' + E.name.toUpperCase() + ' · ' + fmtDay(curWork().date), ''];
+  const block = (title, list) => { lines.push(title + ' (' + list.length + ')'); list.forEach((m, i) => lines.push((i + 1) + '. ' + m.name)); lines.push(''); };
+  block('TEAM A · MAIN', r.teams.AM); block('TEAM A · SUBS', r.teams.AS);
+  if (settings().teamB) { block('TEAM B · MAIN', r.teams.BM); block('TEAM B · SUBS', r.teams.BS); }
+  if (r.out.length) { lines.push('SITTING OUT (' + r.out.length + '): ' + r.out.map(m => m.name).join(', ')); lines.push(''); }
+  lines.push('Subs: stay ready and join as soon as a main leaves the battlefield.');
+  return lines.join('\n');
+}
+async function copyText(text, label) {
+  try { await navigator.clipboard.writeText(text); toast(label + ' copied'); $('mail-fallback').classList.add('hidden'); }
+  catch (err) { $('mail-fallback').classList.remove('hidden'); const ta = $('ta-fallback'); ta.value = text; ta.focus(); ta.select(); toast('Copy was blocked here. The text is selected below.'); }
+}
+function viewSaved(date) {
+  const h = (S().saved[state.event] || []).find(x => x.date === date); const box = $('history-view');
+  if (!h) { box.classList.add('hidden'); return; }
+  const by = sl => h.rows.filter(x => x.s === sl).sort((a, b) => b.p - a.p);
+  const lines = ['ONE1 · ' + EVENTS[state.event].name.toUpperCase() + ' · ' + fmtDay(h.date), ''];
+  [['TEAM A · MAIN', 'AM'], ['TEAM A · SUBS', 'AS'], ['TEAM B · MAIN', 'BM'], ['TEAM B · SUBS', 'BS']].forEach(([t, sl]) => { const l = by(sl); if (!l.length) return; lines.push(t + ' (' + l.length + ')'); l.forEach((x, i) => lines.push((i + 1) + '. ' + x.n)); lines.push(''); });
+  const out = by('OUT'); if (out.length) lines.push('SITTING OUT (' + out.length + '): ' + out.map(x => x.n).join(', '));
+  const text = lines.join('\n');
+  box.innerHTML = '<div class="actions" style="margin-top:12px"><button class="btn primary" type="button" id="hv-copy">Copy this roster</button><button class="btn ghost" type="button" id="hv-close">Close</button></div><pre class="mail">' + esc(text) + '</pre>';
+  box.classList.remove('hidden');
+  $('hv-copy').onclick = () => copyText(text, 'Roster'); $('hv-close').onclick = () => box.classList.add('hidden');
+}
+async function deleteSaved(date, btn) {
+  if (btn.dataset.confirm !== '1') { btn.dataset.confirm = '1'; btn.textContent = 'Confirm delete'; setTimeout(() => { if (btn.isConnected) { btn.dataset.confirm = ''; btn.textContent = 'Delete'; } }, 4000); return; }
+  const evId = state.event;
+  await setHistory(evId, (S().saved[evId] || []).filter(h => h.date !== date), 'Deleted the ' + EVENTS[evId].name + ' roster for ' + fmtShort(date));
+}
+
+// ================= example =================
+function loadExample() {
+  const a = ['Iron', 'Sand', 'Dust', 'Storm', 'Steel', 'Night', 'Red', 'Ghost', 'Desert', 'Canyon', 'Grim', 'Rapid', 'Silent', 'Atlas', 'Cobalt', 'Delta', 'Echo', 'Falcon', 'Hawk', 'Jade', 'Kilo', 'Lunar', 'Nova', 'Onyx', 'Polar'];
+  const b = ['Falcon', 'Viper', 'Runner', 'Wolf', 'Rider', 'Fox', 'Talon', 'Blade', 'Anvil', 'Ranger', 'Shade', 'Hunter', 'Scout', 'Bear', 'Lynx', 'Cobra', 'Raven', 'Tiger', 'Mamba', 'Saber'];
+  let seed = 41; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const names = new Set(); while (names.size < 100) names.add(a[Math.floor(rnd() * a.length)] + b[Math.floor(rnd() * b.length)] + (rnd() < 0.18 ? String(Math.floor(rnd() * 90 + 10)) : ''));
+  const L = blankSource(); L.example = true;
+  L.members = Array.from(names).map((n, i) => mk(n, (58 - i * 0.47 - rnd() * 1.5) * 1e6));
+  const w = { date: isoDate(nextFriday(new Date())), last: {}, gap: {}, ov: {}, settings: Object.assign({}, DEFAULT_SETTINGS), exists: true };
+  L.work.ds = w;
+  state.local = L;
+  for (let k = 0; k < 2; k++) { const r = buildRoster(membersFor('ds', L), w.settings); L.members.forEach(m => { w.last[m.hk] = r.assign[m.key].slot; w.gap[m.hk] = r.assign[m.key].gap; }); }
+  const mains = L.members.filter(m => w.last[m.hk] === 'AM' || w.last[m.hk] === 'BM');
+  if (mains[7]) w.last[mains[7].hk] = 'NS'; if (mains[23]) w.last[mains[23].hk] = 'NS';
+}
+
+// ================= wiring =================
+let initDone = false, samplesChecked = false;
+function addFiles(list) {
+  const sh = state.shots; const max = (sampleImgs && sampleImgs.maxInputBytes) || 20e6;
+  let skipped = 0;
+  Array.from(list || []).forEach(f => {
+    if (!/^image\/(png|jpe?g|webp)$/.test(f.type) || f.size > max) { skipped++; return; }
+    if (sh.files.length >= 40) { skipped++; return; }
+    sh.files.push({ file: f, url: URL.createObjectURL(f) });
+  });
+  sh.error = skipped ? skipped + ' file' + (skipped > 1 ? 's were' : ' was') + ' skipped (only PNG, JPG or WebP screenshots, up to 40 at a time).' : '';
+  renderShots();
+}
+function clearShots() { state.shots.files.forEach(f => URL.revokeObjectURL(f.url)); state.shots.files = []; state.shots.error = ''; }
+
+$('ev-ds').onclick = () => { state.event = 'ds'; $('history-view').classList.add('hidden'); render(); };
+$('ev-cs').onclick = () => { state.event = 'cs'; $('history-view').classList.add('hidden'); render(); };
+$('battle-date').addEventListener('change', e => { if (e.target.value) patchWork(state.event, { date: e.target.value }, 'Set the ' + EVENTS[state.event].name + ' battle date to ' + fmtShort(e.target.value)); });
+let settingsTimer = null, pendingSettings = {};
+function setS(k, v) {
+  const evId = state.event; pendingSettings[k] = v;
+  const src = S(); const w = effectiveWork(evId); w.settings = Object.assign({}, w.settings, { [k]: v }); if (!src.work[evId]) src.work[evId] = w; else src.work[evId].settings = w.settings;
+  render();
+  clearTimeout(settingsTimer);
+  settingsTimer = setTimeout(() => { const p = pendingSettings; pendingSettings = {}; patchWork(evId, { settings: p }); }, 700);
+}
+const clampCore = v => Math.max(0, Math.min(20, Math.round(+v || 0)));
+$('core-minus').onclick = () => setS('core', clampCore(settings().core - 1));
+$('core-plus').onclick = () => setS('core', clampCore(settings().core + 1));
+$('core').addEventListener('change', e => setS('core', clampCore(e.target.value)));
+$('split-tiered').onclick = () => setS('split', 'tiered'); $('split-balanced').onclick = () => setS('split', 'balanced');
+$('teams-ab').onclick = () => setS('teamB', true); $('teams-a').onclick = () => setS('teamB', false);
+$('ns-on').onclick = () => setS('noShowPenalty', true); $('ns-off').onclick = () => setS('noShowPenalty', false);
+
+$('kinds').addEventListener('click', e => { const b = e.target.closest('[data-kind]'); if (!b || state.shots.busy) return; state.shots.kind = b.dataset.kind; state.shots.review = null; renderShots(); });
+$('file-shots').addEventListener('change', e => { addFiles(e.target.files); e.target.value = ''; });
+const zone = $('shotzone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('over'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('over'));
+zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('over'); addFiles(e.dataTransfer.files); });
+document.addEventListener('paste', e => { if (!state.canWrite || !(sampleFn && sampleImgs)) return; const fs = Array.from(e.clipboardData ? e.clipboardData.files : []).filter(f => f.type.startsWith('image/')); if (fs.length) { addFiles(fs); toast(fs.length + ' screenshot' + (fs.length > 1 ? 's' : '') + ' added'); } });
+$('thumbs').addEventListener('click', e => { const b = e.target.closest('[data-rm]'); if (!b) return; const i = +b.dataset.rm; const f = state.shots.files.splice(i, 1)[0]; if (f) URL.revokeObjectURL(f.url); renderShots(); });
+$('btn-read').onclick = readShots;
+$('btn-stop').onclick = () => { if (state.shots.ctl) state.shots.ctl.abort(); };
+$('btn-clear-shots').onclick = () => { clearShots(); renderShots(); };
+$('btn-paste').onclick = () => {
+  const rows = pasteRows($('ta-paste').value);
+  if (!rows.length) { state.shots.error = 'No names found in the text.'; renderShots(); return; }
+  state.shots.error = ''; buildReview(rows, '', 'typed names'); renderShots();
+  $('review').scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+$('review').addEventListener('input', e => { const t = e.target; const R = state.shots.review; if (!R || t.dataset.rf !== 'power') return; const r = R.rows[+t.dataset.ri]; if (r) r.power = t.value; });
+$('review').addEventListener('change', e => {
+  const t = e.target; const R = state.shots.review; if (!R || t.dataset.ri === undefined) return;
+  const r = R.rows[+t.dataset.ri]; if (!r) return;
+  if (t.dataset.rf === 'target') { r.target = t.value; if (t.value !== '-ignore' && t.value !== '+new') r.how = (r.cands[0] === t.value && r.how === 'close') ? 'close' : 'exact'; renderReview(); }
+  else if (t.dataset.rf === 'power') r.power = t.value;
+  else if (t.dataset.rf === 'role') r.role = t.value;
+});
+$('btn-example').onclick = () => {
+  if (state.mode === 'db' && remoteHasData()) { toast('Your alliance data is loaded. The example only shows on an empty page.'); return; }
+  loadExample(); saveLocal(); render();
+};
+$('btn-copy-mail').onclick = () => copyText(mailText(state.result), 'Roster');
+$('btn-save').onclick = async e => { e.target.disabled = true; await saveRoster(); e.target.disabled = false; };
+$('search').addEventListener('input', e => { state.search = e.target.value; renderLedger(state.result); });
+$('filters').addEventListener('click', e => { const b = e.target.closest('button[data-f]'); if (!b) return; state.filter = b.dataset.f; $('filters').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); renderLedger(state.result); });
+$('ledger').addEventListener('change', e => {
+  const t = e.target; const h = t.dataset.h; const act = t.dataset.act; const name = t.dataset.n || 'a member'; if (!h || !act) return;
+  const w = curWork(); const patch = {}; let txt = null;
+  if (act === 'last') {
+    patch.last = { [h]: t.value };
+    const g = w.gap[h];
+    if (t.value === 'AM' || t.value === 'BM') patch.gap = { [h]: 0 };
+    else if (g === undefined || g === null || g === '' || +g === 0) patch.gap = { [h]: 1 };
+    const lbl = (STATUS_OPTS.find(o => o[0] === t.value) || ['', 'blank'])[1];
+    txt = 'Set ' + name + "'s last event to " + lbl;
+  } else if (act === 'gap') {
+    patch.gap = { [h]: Math.max(0, Math.min(99, Math.round(+t.value || 0))) };
+  } else if (act === 'ov') {
+    patch.ov = { [h]: t.value };
+    txt = t.value === 'X' ? 'Marked ' + name + ' away' : t.value === 'A' ? 'Locked ' + name + ' in Team A' : t.value === 'B' ? 'Locked ' + name + ' in Team B' : 'Set ' + name + ' back to auto';
+  }
+  if (S().example) { const src = S(); src.work[state.event] = mergeWork(effectiveWork(state.event), patch); saveLocal(); render(); return; }
+  patchWork(state.event, patch, txt);
+});
+$('history').addEventListener('click', e => { const v = e.target.closest('[data-hview]'); if (v) return viewSaved(v.dataset.hview); const d = e.target.closest('[data-hdel]'); if (d) return deleteSaved(d.dataset.hdel, d); });
+setInterval(() => { renderSync(); }, 60000);
+
+// ================= gate (connect / create) =================
+function renderGate() {
+  const e = $('gate-error'); e.classList.toggle('hidden', !connErr); e.lastElementChild.textContent = connErr;
+  if (BUILTIN_CFG) {
+    $('ta-config').classList.add('hidden'); document.querySelector('label[for="ta-config"]').classList.add('hidden');
+    $('gate-setup-text').textContent = 'This creates a private space for your alliance and gives you the link for your R4s. Only do this once.';
+  }
+}
+$('btn-create').onclick = async () => {
+  const cfg = BUILTIN_CFG || parseFbConfig($('ta-config').value);
+  if (!cfg) { connErr = 'That does not look like a Firebase config. Paste the whole block that contains apiKey and projectId.'; render(); return; }
+  const nm = $('gate-name').value.trim(); if (nm) { try { localStorage.setItem(NAME_KEY, nm.slice(0, 40)); } catch (e) { /* ignore */ } }
+  $('btn-create').disabled = true; $('btn-create').textContent = 'Connecting…';
+  await createSpace(cfg);
+  $('btn-create').disabled = false; $('btn-create').textContent = 'Create alliance space';
+};
+$('btn-try').onclick = () => { if (!state.local.example) loadExample(); state.view = 'app'; render(); };
+
+// ================= settings =================
+function renderSettings() {
+  if (state.mode !== 'db') return;
+  const link = joinLink();
+  if ($('r4-link').value !== link) $('r4-link').value = link;
+  if (document.activeElement !== $('my-name')) $('my-name').value = myName();
+  const cfg = state.remote.config || {};
+  const ks = $('key-status');
+  if (cfg.geminiKey) ks.textContent = 'A key is saved' + (cfg.keyBy ? ' by ' + cfg.keyBy : '') + (cfg.keyAt ? ' (' + ago(cfg.keyAt) + ')' : '') + '. Every R4 can read screenshots.';
+  else ks.textContent = 'No key yet. Screenshot reading is off until one R4 adds a key.';
+  $('btn-key-remove').classList.toggle('hidden', !cfg.geminiKey);
+  $('btn-key-test').classList.toggle('hidden', !cfg.geminiKey);
+}
+$('btn-copy-link').onclick = () => copyText(joinLink(), 'R4 link');
+$('my-name').addEventListener('change', e => { const v = e.target.value.trim().slice(0, 40); try { localStorage.setItem(NAME_KEY, v); } catch (er) { /* ignore */ } state.me = v; toast(v ? 'Saved. Your changes now show as ' + v : 'Name cleared'); renderLog(); });
+$('btn-key-save').onclick = async () => {
+  const v = $('key-input').value.trim();
+  if (!/^[A-Za-z0-9_-]{20,}$/.test(v)) { toast('That does not look like a Gemini API key.'); return; }
+  try { await db.doc('storm/config').update({ geminiKey: v, keyBy: myName() || '', keyAt: nowIso() }); gemModel = null; $('key-input').value = ''; toast('Key saved for everyone'); addLog('Added a Gemini API key for reading screenshots'); }
+  catch (e) { writeFailed(e); }
+};
+$('btn-key-remove').onclick = async () => { try { await db.doc('storm/config').update({ geminiKey: '', keyBy: myName() || '', keyAt: nowIso() }); toast('Key removed'); addLog('Removed the Gemini API key'); } catch (e) { writeFailed(e); } };
+$('btn-key-test').onclick = async () => {
+  const ks = $('key-status'); ks.textContent = 'Testing…';
+  try { gemModel = null; const m = await gemPickModel(geminiKey()); ks.textContent = 'The key works. Screenshots are read with ' + m.replace('models/', '') + '.'; }
+  catch (e) { ks.textContent = sampleErrorText(e); }
+};
+function backupJson() {
+  const R = state.remote; const w = k => (R.work[k] ? { date: R.work[k].date, last: R.work[k].last, gap: R.work[k].gap, ov: R.work[k].ov, settings: R.work[k].settings } : null);
+  return JSON.stringify({ app: 'storm-rotation', version: 1, exportedAt: nowIso(), members: R.members.map(m => ({ n: m.name, p: Math.round(m.power) })), work: { ds: w('ds'), cs: w('cs') }, history: { ds: encodeHistory(R.saved.ds), cs: encodeHistory(R.saved.cs) } });
+}
+$('btn-backup').onclick = () => {
+  const blob = new Blob([backupJson()], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'storm-rotation-backup-' + todayIso() + '.json';
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+};
+$('file-restore').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  let d; try { d = JSON.parse(await f.text()); } catch (er) { toast('That file is not a backup from this tool.'); return; }
+  if (!d || d.app !== 'storm-rotation' || !Array.isArray(d.members)) { toast('That file is not a backup from this tool.'); return; }
+  const box = $('restore-confirm'); box.classList.remove('hidden');
+  box.querySelector('span').textContent = 'Replace all shared data with the backup from ' + (d.exportedAt ? new Date(d.exportedAt).toLocaleString('en-GB') : 'this file') + ' (' + d.members.length + ' members)? Every R4 will see the restored data.';
+  $('btn-restore-yes').onclick = async () => {
+    box.classList.add('hidden');
+    try {
+      await setMembers(d.members.filter(x => x && x.n).map(x => mk(String(x.n), +x.p || 0)));
+      for (const k of ['ds', 'cs']) {
+        if (d.history && Array.isArray(d.history[k])) await setHistory(k, parseHistoryDoc({ history: d.history[k] }));
+        if (d.work && d.work[k]) await patchWork(k, parseWorkDoc(d.work[k]), null, true);
+      }
+      addLog('Restored a backup'); toast('Backup restored');
+    } catch (er) { writeFailed(er); }
+  };
+  $('btn-restore-no').onclick = () => box.classList.add('hidden');
+});
+$('btn-disconnect').onclick = e => {
+  const b = e.target;
+  if (b.dataset.confirm !== '1') { b.dataset.confirm = '1'; b.textContent = 'Confirm: disconnect this device'; setTimeout(() => { if (b.isConnected) { b.dataset.confirm = ''; b.textContent = 'Disconnect this device'; } }, 4000); return; }
+  try { localStorage.removeItem(CONN_KEY); localStorage.removeItem(LS_KEY); } catch (er) { /* ignore */ }
+  location.reload();
+};
+
+// ================= boot =================
+initSample(); samplesChecked = true;
+const fromHash = readJoinFromHash();
+if (fromHash) { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* ignore */ } }
+const startConn = fromHash && fromHash !== 'bad' ? fromHash : loadConn();
+if (fromHash === 'bad') connErr = 'This R4 link is incomplete. Ask for the link again and copy all of it.';
+if (startConn) {
+  state.view = 'app'; render();
+  connect(startConn).then(ok => { initDone = true; if (!ok) state.view = 'gate'; render(); });
+} else {
+  loadLocal(); state.view = 'gate'; initDone = true; render();
+}
+})();
+
+</script>
+</body>
+</html>
