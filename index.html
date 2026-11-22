@@ -1094,7 +1094,7 @@ async function shareLocal() {
 const GEM = 'https://generativelanguage.googleapis.com/v1beta';
 const IMG_LIMITS = { maxCount: 4, maxInputBytes: 30e6, mediaTypes: ['image/png', 'image/jpeg', 'image/webp'] };
 let gemModel = null;
-const geminiKey = () => ((useRemote() || state.mode === 'db') && state.remote.config && state.remote.config.geminiKey) || '';
+const geminiKey = () => (state.mode === 'db' && state.remote.config && state.remote.config.geminiKey) || '';
 async function gemFail(r) {
   let j = null; try { j = await r.json(); } catch (e) { /* not json */ }
   const msg = (j && j.error && j.error.message) || ''; const st = (j && j.error && j.error.status) || '';
@@ -1771,11 +1771,26 @@ function renderSettings() {
 }
 $('btn-copy-link').onclick = () => copyText(joinLink(), 'R4 link');
 $('my-name').addEventListener('change', e => { const v = e.target.value.trim().slice(0, 40); try { localStorage.setItem(NAME_KEY, v); } catch (er) { /* ignore */ } state.me = v; toast(v ? 'Saved. Your changes now show as ' + v : 'Name cleared'); renderLog(); });
+function cleanKey(v) {
+  v = String(v || '').trim();
+  const m = v.match(/(?:GEMINI_API_KEY|GOOGLE_API_KEY|API_KEY|key)\s*[=:]\s*["'`]?([^\s"'`]+)/i);
+  if (m) v = m[1];
+  return v.replace(/^["'`]+|["'`]+$/g, '').replace(/\s+/g, '');
+}
 $('btn-key-save').onclick = async () => {
-  const v = $('key-input').value.trim();
-  if (!/^[A-Za-z0-9_-]{20,}$/.test(v)) { toast('That does not look like a Gemini API key.'); return; }
-  try { await db.doc('storm/config').update({ geminiKey: v, keyBy: myName() || '', keyAt: nowIso() }); gemModel = null; $('key-input').value = ''; toast('Key saved for everyone'); addLog('Added a Gemini API key for reading screenshots'); }
+  const v = cleanKey($('key-input').value);
+  const ks = $('key-status');
+  if (v.length < 20) { ks.textContent = 'That is too short to be a Gemini API key. In AI Studio, click the copy icon next to the key and paste it here.'; return; }
+  const btn = $('btn-key-save'); btn.disabled = true; ks.textContent = 'Checking the key with Gemini…';
+  let warn = '';
+  try { gemModel = null; await gemPickModel(v); }
+  catch (e) {
+    if (e && (e.code === 'bad_key' || e.code === 'region')) { ks.textContent = sampleErrorText(e) + (e.message ? ' (Gemini says: ' + String(e.message).slice(0, 140) + ')' : ''); btn.disabled = false; return; }
+    warn = ' Gemini could not be reached to check it, so try Test key in a minute.';
+  }
+  try { await db.doc('storm/config').update({ geminiKey: v, keyBy: myName() || '', keyAt: nowIso() }); gemModel = null; $('key-input').value = ''; toast('Key saved for everyone'); addLog('Added a Gemini API key for reading screenshots'); if (warn) setTimeout(() => { $('key-status').textContent += warn; }, 300); }
   catch (e) { writeFailed(e); }
+  btn.disabled = false;
 };
 $('btn-key-remove').onclick = async () => { try { await db.doc('storm/config').update({ geminiKey: '', keyBy: myName() || '', keyAt: nowIso() }); toast('Key removed'); addLog('Removed the Gemini API key'); } catch (e) { writeFailed(e); } };
 $('btn-key-test').onclick = async () => {
