@@ -920,8 +920,8 @@ const I18N = (function () {
     'players read': 'تمت قراءتهم', 'matched': 'مطابق', 'close matches to check': 'تطابق قريب للتحقق', 'new': 'جديد', 'ignored': 'متجاهَل',
     'Names can be misread. Check the rows marked Check or New, and pick the right member if needed.': 'قد تُقرأ الأسماء بشكل خاطئ. راجع الأسطر المعلّمة بـ «تحقق» أو «جديد» واختر العضو الصحيح عند الحاجة.',
     'Which battle is this from?': 'من أي معركة هذه؟',
-    'Replace the whole Team A list: anyone in Team A who is not in these screenshots counts as sat out. Untick if you are adding more screenshots to a list you already uploaded.': 'استبدال قائمة الفريق A كاملة: أي لاعب في الفريق A غير موجود في هذه اللقطات يُحتسب خارج المشاركة. ألغِ التحديد إذا كنت تضيف لقطات لقائمة رفعتها سابقًا.',
-    'Replace the whole Team B list: anyone in Team B who is not in these screenshots counts as sat out. Untick if you are adding more screenshots to a list you already uploaded.': 'استبدال قائمة الفريق B كاملة: أي لاعب في الفريق B غير موجود في هذه اللقطات يُحتسب خارج المشاركة. ألغِ التحديد إذا كنت تضيف لقطات لقائمة رفعتها سابقًا.',
+    'Replace the whole Team A list: anyone in Team A who is not in these screenshots counts as sat out. Leave unticked to add these players to the list you already have.': 'استبدال قائمة الفريق A كاملة: أي لاعب في الفريق A غير موجود في هذه اللقطات يُحتسب خارج المشاركة. اتركه دون تحديد لإضافة هؤلاء اللاعبين إلى القائمة الموجودة لديك.',
+    'Replace the whole Team B list: anyone in Team B who is not in these screenshots counts as sat out. Leave unticked to add these players to the list you already have.': 'استبدال قائمة الفريق B كاملة: أي لاعب في الفريق B غير موجود في هذه اللقطات يُحتسب خارج المشاركة. اتركه دون تحديد لإضافة هؤلاء اللاعبين إلى القائمة الموجودة لديك.',
     'Make sure every page of the results is included, or players on missing pages get marked No-show.': 'تأكد من تضمين كل صفحات النتائج، وإلا سيُسجَّل اللاعبون في الصفحات الناقصة كغائبين.',
     'nobody': 'لا أحد', 'Applying updates the shared data for every R4.': 'التطبيق يحدّث البيانات المشتركة لجميع الـR4.', 'Discard': 'تجاهل', 'Apply': 'تطبيق',
     'Applied. Every R4 now sees the update.': 'تم التطبيق. جميع الـR4 يرون التحديث الآن.',
@@ -1117,7 +1117,7 @@ const PAT = [
     // aria labels with names
     [/^(Last event for|Events waited by|Officer setting for|Member for|Power read for|Score read for|Role for) (.+)$/, m => ({ 'Last event for': 'الحدث السابق لـ ', 'Events waited by': 'الأحداث التي انتظرها ', 'Officer setting for': 'إعداد الضابط لـ ', 'Member for': 'العضو لـ ', 'Power read for': 'القوة المقروءة لـ ', 'Score read for': 'النتيجة المقروءة لـ ', 'Role for': 'الدور لـ ' }[m[1]]) + m[2]],
     [/^· Top$/, () => '· الأعلى'],
-    [/^Replace the sign-up list for (Team [AB]) for the (.+) battle: the (\d+) members not in these screenshots are not registered for it\. Untick if you are adding more screenshots to a list you already uploaded\.$/, m => 'استبدال قائمة تسجيل ' + (m[1] === 'Team A' ? 'الفريق A' : 'الفريق B') + ' لمعركة ' + date(m[2]) + ': ' + pl(m[3], 'member') + ' غير موجودين في هذه اللقطات غير مسجّلين فيه. ألغِ التحديد إذا كنت تضيف لقطات لقائمة رفعتها سابقًا.'],
+    [/^Replace the sign-up list for (Team [AB]) for the (.+) battle: the (\d+) members not in these screenshots are not registered for it\. Leave unticked to add these players to the list you already have\.$/, m => 'استبدال قائمة تسجيل ' + (m[1] === 'Team A' ? 'الفريق A' : 'الفريق B') + ' لمعركة ' + date(m[2]) + ': ' + pl(m[3], 'member') + ' غير موجودين في هذه اللقطات غير مسجّلين فيه. اتركه دون تحديد لإضافة هؤلاء اللاعبين إلى القائمة الموجودة لديك.'],
     [/^Sign-ups for (.+?) · Team A: (.+?) · Team B: (.+)$/, m => 'التسجيلات لـ ' + date(m[1]) + ' · الفريق A: ' + suPart(m[2]) + ' · الفريق B: ' + suPart(m[3])],
     [/^Set the (Team [AB]) sign-ups for the (.+) battle: (\d+) signed up, (\d+) not signed up \(from (.+)\)$/, m => 'حدّد تسجيلات ' + (m[1] === 'Team A' ? 'الفريق A' : 'الفريق B') + ' لمعركة ' + date(m[2]) + ': ' + m[3] + ' مسجّل، ' + m[4] + ' غير مسجّل (من ' + src(m[5]) + ')'],
     [/^Cleared the sign-up list for the (.+) battle$/, m => 'مسح قائمة التسجيل لمعركة ' + date(m[1])],
@@ -1828,7 +1828,7 @@ function buildReview(raw, screen, sourceLabel) {
   rows.sort((x, y) => ({ close: 0, new: 1, exact: 2 }[x.how] - { close: 0, new: 1, exact: 2 }[y.how]) || x.name.localeCompare(y.name));
   const bo = battleOptions(state.event);
   const noPower = !realMembers.length || realMembers.filter(m => !m.power).length > realMembers.length / 2;
-  sh.review = { kind, ev: state.event, rows, screen, sourceLabel, removeMissing: false, replaceTeam: true, battle: bo[0].v, updatePower: noPower, replaceSu: true };
+  sh.review = { kind, ev: state.event, rows, screen, sourceLabel, removeMissing: false, replaceTeam: false, battle: bo[0].v, updatePower: noPower, replaceSu: false };
 }
 function reviewEffects(R) {
   const src = S(); const realMembers = src.example ? [] : src.members;
@@ -2086,14 +2086,14 @@ function renderReview() {
   let optsHtml = '';
   if (isSU(R.kind)) {
     const wd = effectiveWork(R.ev).date; const next = wd < todayIso() ? nextDate(wd) : wd;
-    optsHtml += '<label class="check"><input type="checkbox" id="rv-su-replace"' + (R.replaceSu ? ' checked' : '') + '><span>' + esc('Replace the sign-up list for ' + (R.kind === 'signupsA' ? 'Team A' : 'Team B') + ' for the ' + fmtDay(next) + ' battle: the ' + fx.missing.length + ' members not in these screenshots are not registered for it. Untick if you are adding more screenshots to a list you already uploaded.') + '</span></label>';
+    optsHtml += '<label class="check"><input type="checkbox" id="rv-su-replace"' + (R.replaceSu ? ' checked' : '') + '><span>' + esc('Replace the sign-up list for ' + (R.kind === 'signupsA' ? 'Team A' : 'Team B') + ' for the ' + fmtDay(next) + ' battle: the ' + fx.missing.length + ' members not in these screenshots are not registered for it. Leave unticked to add these players to the list you already have.') + '</span></label>';
     optsHtml += '<label class="check"><input type="checkbox" id="rv-su-power"' + (R.updatePower ? ' checked' : '') + '><span>This screen shows 1st team power: update power from it</span></label>';
   } else if (R.kind === 'members') {
     optsHtml += '<label class="check"><input type="checkbox" id="rv-remove"' + (R.removeMissing ? ' checked' : '') + '><span>' + esc('Remove the ' + fx.missing.length + ' members who are not in these screenshots (they left the alliance). Leave unticked if you only uploaded part of the list.') + '</span></label>';
   } else {
     const bo = battleOptions(R.ev);
     optsHtml += '<label class="field" for="rv-battle"><span class="label">Which battle is this from?</span><select id="rv-battle">' + bo.map(o => '<option value="' + o.v + '"' + (o.v === R.battle ? ' selected' : '') + '>' + esc(o.label) + '</option>').join('') + '</select></label>';
-    if (isTeam) optsHtml += '<label class="check"><input type="checkbox" id="rv-replace"' + (R.replaceTeam ? ' checked' : '') + '><span>Replace the whole Team ' + R.kind + ' list: anyone in Team ' + R.kind + ' who is not in these screenshots counts as sat out. Untick if you are adding more screenshots to a list you already uploaded.</span></label>';
+    if (isTeam) optsHtml += '<label class="check"><input type="checkbox" id="rv-replace"' + (R.replaceTeam ? ' checked' : '') + '><span>Replace the whole Team ' + R.kind + ' list: anyone in Team ' + R.kind + ' who is not in these screenshots counts as sat out. Leave unticked to add these players to the list you already have.</span></label>';
     optsHtml += '<p class="muted" style="margin:0;font-size:13px">Scores are saved for R4s to see. They do not change the rotation.</p>';
     if (R.kind === 'results') {
       optsHtml += '<p style="margin:0;font-size:14px"><b>Will be marked No-show (' + fx.noShows.length + '):</b> ' + (fx.noShows.length ? '<span translate="no">' + esc(fx.noShows.map(m => m.name).join(', ')) + '</span>' : 'nobody') + '</p>';
