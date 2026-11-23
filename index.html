@@ -1568,7 +1568,16 @@ function snapOf(h) {
 async function publishViews(quiet) {
   const vc = viewCode(); if (!vc || state.mode !== 'db' || !fsDb) return false;
   const R = state.remote;
-  const doc = { updatedAt: nowIso(), h: { ds: R.saved.ds.map(snapOf), cs: R.saved.cs.map(snapOf) }, m: R.members.map(m => ({ n: m.name, p: Math.round(m.power) })) };
+  // the battle that was already played (uploaded as "last event") counts as history too, even if no roster was saved for it
+  const withLast = k => {
+    const list = R.saved[k].map(snapOf); const w = R.work[k]; if (!w || !w.last) return list;
+    const rows = []; R.members.forEach(m => { const sl = w.last[m.hk]; if (sl === 'AM' || sl === 'AS' || sl === 'BM' || sl === 'BS') rows.push({ n: m.name, p: m.power, s: sl }); });
+    if (!rows.length) return list;
+    const d = new Date(w.date + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - 7); const date = d.toISOString().slice(0, 10);
+    if (!list.some(x => x.date === date)) list.push(snapOf({ date, savedAt: w.updatedAt || '', rows }));
+    return list.sort((x, y) => y.date.localeCompare(x.date));
+  };
+  const doc = { updatedAt: nowIso(), h: { ds: withLast('ds'), cs: withLast('cs') }, m: R.members.map(m => ({ n: m.name, p: Math.round(m.power) })) };
   try { await fsDb.doc('views/' + vc).set(doc); if (!quiet) toast('Published to the member link'); return true; }
   catch (e) { toast(e && e.code === 'permission-denied' ? 'Could not publish. Set the R4 password first, and publish the new security rules.' : 'Could not publish. Check your connection.'); return false; }
 }
