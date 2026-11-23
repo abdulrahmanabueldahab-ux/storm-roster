@@ -1086,6 +1086,7 @@ const PAT = [
     [/^(.+) Gemini could not be reached to check it, so try Test key in a minute\.$/, m => (trCore(m[1]) || m[1]) + ' تعذر الوصول إلى Gemini للتحقق منه، جرّب «اختبار المفتاح» بعد دقيقة.'],
     [/^(.+) \(Gemini says: (.+)\)$/, m => (trCore(m[1]) || m[1]) + ' (رد Gemini: ' + m[2] + ')'],
     [/^(.+) The players read so far are below\.$/, m => (trCore(m[1]) || m[1]) + ' اللاعبون الذين تمت قراءتهم حتى الآن بالأسفل.'],
+    [/^Google's AI is very busy right now\. The site tried several times and other models too\. Wait a minute and press Read again\.$/, () => 'ذكاء Google مشغول جدًا الآن. جرّب الموقع عدة مرات ومع نماذج أخرى. انتظر دقيقة ثم اضغط «قراءة» مرة أخرى.'],
     [/^Something went wrong while reading(?: \((.+)\))?\. Try again\.$/, m => 'حدث خطأ أثناء القراءة' + (m[1] ? ' (' + m[1] + ')' : '') + '. حاول مجددًا.'],
     [/^Could not connect to Firebase \((.+)\)\.$/, m => 'تعذر الاتصال بـ Firebase (' + m[1] + ').'],
     [/^Firebase refused this site\. (.+)$/, () => 'رفض Firebase هذا الموقع. تحقق من الإعدادات، ومن إضافة النطاق في Authentication ← Settings ← Authorized domains.'],
@@ -1655,15 +1656,18 @@ async function shareLocal() {
 const GEM = 'https://generativelanguage.googleapis.com/v1beta';
 const IMG_LIMITS = { maxCount: 4, maxInputBytes: 30e6, mediaTypes: ['image/png', 'image/jpeg', 'image/webp'] };
 let gemModel = null;
+let gemList = [];
 const geminiKey = () => (state.mode === 'db' && state.remote.config && state.remote.config.geminiKey) || '';
 async function gemFail(r) {
   let j = null; try { j = await r.json(); } catch (e) { /* not json */ }
   const msg = (j && j.error && j.error.message) || ''; const st = (j && j.error && j.error.status) || '';
+  if (r.status === 503 || st === 'UNAVAILABLE' || /high demand|overloaded|try again later/i.test(msg)) return { code: 'overloaded', message: msg };
   if (r.status === 429 || st === 'RESOURCE_EXHAUSTED') return { code: 'rate_limited', message: msg };
   if (/API key not valid|API_KEY_INVALID|API key expired/i.test(msg) || r.status === 401) return { code: 'bad_key', message: msg };
   if (/location is not supported/i.test(msg)) return { code: 'region', message: msg };
   if (r.status === 403) return { code: 'bad_key', message: msg };
-  if (r.status === 404) { gemModel = null; return { code: 'upstream_error', message: msg }; }
+  if (r.status === 404) { gemModel = null; gemList = []; return { code: 'upstream_error', message: msg }; }
+  if (r.status === 500 || r.status === 502 || r.status === 504) return { code: 'overloaded', message: msg };
   return { code: 'upstream_error', message: msg || ('HTTP ' + r.status) };
 }
 async function gemPickModel(key) {
@@ -1681,6 +1685,9 @@ async function gemPickModel(key) {
   const pickFrom = (stable.length ? stable : pool).sort((a, b) => ver(b.name) - ver(a.name) || a.name.length - b.name.length);
   const pick = pickFrom[0] || models.find(m => can(m) && /gemini/.test(m.name));
   if (!pick) throw { code: 'upstream_error', message: 'No Gemini model available for this key.' };
+  // fallbacks for busy periods: other flash versions, then the lighter flash-lite models
+  const lite = models.filter(m => can(m) && /gemini/.test(m.name) && /flash-lite/.test(m.name) && !/(preview|exp|image|tts|audio|live|embed)/.test(m.name)).sort((a, b) => ver(b.name) - ver(a.name));
+  gemList = [pick].concat(pickFrom.filter(m => m !== pick), lite).map(m => m.name).filter((n, i, a) => a.indexOf(n) === i);
   gemModel = pick.name;
   return gemModel;
 }
@@ -1694,21 +1701,32 @@ async function imageToB64(file) {
   for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
   return btoa(bin);
 }
+const sleep = (ms, signal) => new Promise((res, rej) => { const t = setTimeout(res, ms); if (signal) signal.addEventListener('abort', () => { clearTimeout(t); rej({ code: 'cancelled' }); }, { once: true }); });
 async function gemJson(prompt, opts) {
   const key = geminiKey(); if (!key) throw { code: 'no_key' };
   const signal = opts && opts.signal;
   try {
-    const model = await gemPickModel(key);
+    await gemPickModel(key);
     const parts = [];
     for (const f of [].concat((opts && opts.images) || [])) { try { parts.push({ inline_data: { mime_type: 'image/jpeg', data: await imageToB64(f) } }); } catch (e) { throw { code: 'image_rejected' }; } }
     parts.push({ text: prompt });
-    const r = await fetch(GEM + '/' + model + ':generateContent', { method: 'POST', signal, headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { responseMimeType: 'application/json', temperature: 0 } }) });
-    if (!r.ok) throw await gemFail(r);
-    const j = await r.json();
-    const cand = j.candidates && j.candidates[0];
-    const text = ((cand && cand.content && cand.content.parts) || []).map(p => p.text || '').join('').trim();
-    if (!text) throw { code: (j.promptFeedback && j.promptFeedback.blockReason) ? 'refused' : 'empty_completion' };
-    try { return JSON.parse(text); } catch (e) { const m = text.match(/[\[{][\s\S]*[\]}]/); if (m) { try { return JSON.parse(m[0]); } catch (e2) { /* fall through */ } } throw { code: 'invalid_json' }; }
+    const body = JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { responseMimeType: 'application/json', temperature: 0 } });
+    // Google sometimes answers "high demand": wait a little, retry, and try other models
+    const waits = [0, 2000, 4000, 7000, 11000]; let last = null;
+    for (let i = 0; i < waits.length; i++) {
+      if (waits[i]) await sleep(waits[i], signal);
+      const model = gemList[i % Math.min(gemList.length || 1, 3)] || gemModel;
+      let r;
+      try { r = await fetch(GEM + '/' + model + ':generateContent', { method: 'POST', signal, headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' }, body }); }
+      catch (e) { if (e && (e.name === 'AbortError' || (signal && signal.aborted))) throw { code: 'cancelled' }; last = { code: 'overloaded', message: String((e && e.message) || e) }; continue; }
+      if (!r.ok) { const f = await gemFail(r); if (f.code === 'overloaded' || f.code === 'rate_limited') { last = f; continue; } throw f; }
+      const j = await r.json();
+      const cand = j.candidates && j.candidates[0];
+      const text = ((cand && cand.content && cand.content.parts) || []).map(p => p.text || '').join('').trim();
+      if (!text) throw { code: (j.promptFeedback && j.promptFeedback.blockReason) ? 'refused' : 'empty_completion' };
+      try { return JSON.parse(text); } catch (e) { const m = text.match(/[\[{][\s\S]*[\]}]/); if (m) { try { return JSON.parse(m[0]); } catch (e2) { /* fall through */ } } throw { code: 'invalid_json' }; }
+    }
+    throw last || { code: 'overloaded' };
   } catch (e) {
     if (e && (e.name === 'AbortError' || (signal && signal.aborted))) throw { code: 'cancelled' };
     if (e && e.code) throw e;
@@ -1736,6 +1754,7 @@ function sampleErrorText(e) {
   if (c === 'no_key') return 'Add a Gemini API key in step 06 first. You can still type names below.';
   if (c === 'bad_key') return 'Gemini refused the API key. Check it in step 06.';
   if (c === 'region') return 'Gemini is not available in this region for this key. Another R4 in a supported country can upload instead.';
+  if (c === 'overloaded') return 'Google\'s AI is very busy right now. The site tried several times and other models too. Wait a minute and press Read again.';
   if (c === 'rate_limited') return 'The free Gemini limit was reached. Wait a minute and try again, or upload fewer screenshots at a time.';
   if (c === 'image_rejected') return 'One of the screenshots could not be opened. Remove it and try again.';
   if (c === 'refused') return 'Gemini declined to read these screenshots. Try different ones.';
