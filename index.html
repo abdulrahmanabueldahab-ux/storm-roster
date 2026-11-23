@@ -456,8 +456,9 @@ body.viewer-mode ol.roster li.ed, body.viewer-mode .chip.ed { cursor: default; }
           <div class="seg small" role="group" aria-labelledby="teams-label">
             <button type="button" id="teams-ab" aria-pressed="true">A + B</button>
             <button type="button" id="teams-a" aria-pressed="false">A only</button>
+            <button type="button" id="teams-b" aria-pressed="false">B only</button>
           </div>
-          <p>A + B registers 60 members (40 main, 20 subs). A only registers 30.</p>
+          <p>A + B registers 60 members (40 main, 20 subs). A only or B only registers 30.</p>
         </div>
         <div class="rule">
           <span class="label" id="ns-label">No-show penalty</span>
@@ -737,8 +738,8 @@ function nextGap(m, slot) {
  * opts: {core, split:'tiered'|'balanced', teamB:boolean, noShowPenalty:boolean}
  */
 function buildRoster(members, opts) {
-  const o = Object.assign({ core: 0, split: 'tiered', teamB: true, noShowPenalty: true }, opts || {});
-  const cap = { AM: CAP.AM, AS: CAP.AS, BM: o.teamB ? CAP.BM : 0, BS: o.teamB ? CAP.BS : 0 };
+  const o = Object.assign({ core: 0, split: 'tiered', teamA: true, teamB: true, noShowPenalty: true }, opts || {});
+  const cap = { AM: o.teamA === false ? 0 : CAP.AM, AS: o.teamA === false ? 0 : CAP.AS, BM: o.teamB ? CAP.BM : 0, BS: o.teamB ? CAP.BS : 0 };
   const teams = { AM: [], AS: [], BM: [], BS: [] };
   const out = [];
   const unavailable = [];
@@ -788,6 +789,12 @@ function buildRoster(members, opts) {
     lockedA.push(...movable);
     lockedA.sort(byPower);
     lockedB = [];
+  }
+  if (cap.AM === 0 && lockedA.length) {
+    const movable = lockedA.filter(canB);
+    if (movable.length) warnings.push(movable.length + ' player(s) locked to Team A were moved to Team B because Team A is off.');
+    lockedB.push(...movable); lockedB.sort(byPower);
+    lockedA.length = 0;
   }
   const overflow = [];
   lockedA.forEach(m => { if (teams.AM.length < cap.AM) { m._locked = true; put(m, 'AM'); } else overflow.push(m); });
@@ -955,8 +962,8 @@ const I18N = (function () {
     'Team split': 'توزيع الفريقين', 'Strongest in A': 'الأقوى في A', 'Balanced': 'متوازن',
     'Team A gets the highest-power players of this week. Team B gets the rest.': 'يحصل الفريق A على أعلى اللاعبين قوة هذا الأسبوع، ويحصل الفريق B على الباقين.',
     'Both teams get about the same total power.': 'يحصل الفريقان على مجموع قوة متقارب.',
-    'Teams': 'الفرق', 'A + B': 'A + B', 'A only': 'A فقط',
-    'A + B registers 60 members (40 main, 20 subs). A only registers 30.': 'A + B يسجّل 60 عضوًا (40 أساسي و20 احتياط). A فقط يسجّل 30.',
+    'Teams': 'الفرق', 'A + B': 'A + B', 'A only': 'A فقط', 'B only': 'B فقط',
+    'A + B registers 60 members (40 main, 20 subs). A only or B only registers 30.': 'A + B يسجّل 60 عضوًا (40 أساسي و20 احتياط). A فقط أو B فقط يسجّل 30.',
     'No-show penalty': 'عقوبة الغياب', 'On': 'تشغيل', 'Off': 'إيقاف',
     'Members marked No-show last time go to the back of the line for one event.': 'الأعضاء المسجلون كغائبين في المرة السابقة ينتقلون إلى آخر الدور لحدث واحد.',
     'Members who have waited the most events without a main slot go first.': 'من انتظر أكثر عدد من الأحداث دون مقعد أساسي يشارك أولًا.',
@@ -1141,6 +1148,7 @@ const PAT = [
     [/^Changed (.+)'s power to (.+)$/, m => 'غيّر قوة ' + m[1] + ' إلى ' + m[2]],
     [/^Removed (.+) from the member list$/, m => 'أزال ' + m[1] + ' من قائمة الأعضاء'],
     [/^(\d+) player\(s\) placed by an R4 did not fit \(that slot is full or the team is off\) and went into the normal rotation\.$/, m => m[1] + ' لاعب وضعهم أحد قادة R4 لم يتّسع لهم المكان (المكان ممتلئ أو الفريق متوقف) وانتقلوا إلى الدور العادي.'],
+    [/^(\d+) player\(s\) locked to Team A were moved to Team B because Team A is off\.$/, m => 'تم نقل ' + m[1] + ' لاعب مثبّتين في الفريق A إلى الفريق B لأن الفريق A متوقف.'],
     [/^Locked (.+) in Team ([AB])$/, m => 'ثبّت ' + m[1] + ' في الفريق ' + m[2]],
     [/^Set (.+) back to auto$/, m => 'أعاد ' + m[1] + ' إلى تلقائي'],
     [/^Set (.+)'s last event to (.+)$/, m => 'غيّر الحدث السابق لـ ' + m[1] + ' إلى ' + (trCore(m[2]) || m[2])],
@@ -1266,7 +1274,7 @@ const KINDS = {
 };
 const STATUS_OPTS = [['', '—'], ['AM', 'A Main'], ['AS', 'A Sub'], ['BM', 'B Main'], ['BS', 'B Sub'], ['OUT', 'Out'], ['NS', 'No-show']];
 const OV_OPTS = [['', 'Auto'], ['A', 'Lock Team A'], ['B', 'Lock Team B'], ['X', 'Away / unavailable'], ['AM', 'Move: Team A main'], ['AS', 'Move: Team A sub'], ['BM', 'Move: Team B main'], ['BS', 'Move: Team B sub'], ['OUT', 'Move: sit out']];
-const DEFAULT_SETTINGS = { core: 0, split: 'tiered', teamB: true, noShowPenalty: true };
+const DEFAULT_SETTINGS = { core: 0, split: 'tiered', teamA: true, teamB: true, noShowPenalty: true };
 const LS_KEY = 'storm-rotation-v2';
 const HISTORY_CAP = 16;
 
@@ -2012,7 +2020,8 @@ function render() {
   $('split-tiered').setAttribute('aria-pressed', String(s.split === 'tiered'));
   $('split-balanced').setAttribute('aria-pressed', String(s.split === 'balanced'));
   $('split-help').textContent = s.split === 'tiered' ? 'Team A gets the highest-power players of this week. Team B gets the rest.' : 'Both teams get about the same total power.';
-  $('teams-ab').setAttribute('aria-pressed', String(s.teamB)); $('teams-a').setAttribute('aria-pressed', String(!s.teamB));
+  const tA = s.teamA !== false, tB = s.teamB !== false;
+  $('teams-ab').setAttribute('aria-pressed', String(tA && tB)); $('teams-a').setAttribute('aria-pressed', String(tA && !tB)); $('teams-b').setAttribute('aria-pressed', String(!tA && tB));
   $('ns-on').setAttribute('aria-pressed', String(s.noShowPenalty)); $('ns-off').setAttribute('aria-pressed', String(!s.noShowPenalty));
   document.querySelectorAll('.rules button, .rules input').forEach(el => { el.disabled = !state.canWrite; });
   $('btn-save').classList.toggle('hidden', !state.canWrite);
@@ -2172,8 +2181,8 @@ function renderRoster(r) {
   const warns = r.warnings.slice(); if (!S().members.length) warns.unshift('Upload your member list in step 1.');
   $('warnings').innerHTML = warns.map(w => '<div class="banner warn"><p>' + esc(w) + '</p></div>').join('');
   const board = (t, cls, M, Sb, capM, capS) => { const tot = sumP(M); const avg = M.length ? tot / M.length : 0; return '<div class="board ' + cls + '"><div class="board-h"><h3>Team ' + t + '</h3><div class="meta">Main power <b>' + fmtPower(tot) + '</b><br>Avg <b>' + fmtPower(avg) + '</b> · Top <b>' + fmtPower(M[0] ? M[0].power : 0) + '</b></div></div>' + group('Main', M, capM, r.assign) + group('Subs', Sb, capS, r.assign) + '</div>'; };
-  let html = board('A', 'a', r.teams.AM, r.teams.AS, r.cap.AM, r.cap.AS);
-  if (s.teamB) html += board('B', 'b', r.teams.BM, r.teams.BS, r.cap.BM, r.cap.BS);
+  let html = s.teamA !== false ? board('A', 'a', r.teams.AM, r.teams.AS, r.cap.AM, r.cap.AS) : '';
+  if (s.teamB !== false) html += board('B', 'b', r.teams.BM, r.teams.BS, r.cap.BM, r.cap.BS);
   $('boards').innerHTML = html;
   const nextUp = r.out.filter(m => r.assign[m.key].tag === 'Next').length;
   $('bench-title').textContent = 'Sitting out' + (nextUp ? ' · ' + nextUp + ' first in line next time' : '');
@@ -2282,6 +2291,7 @@ function rosterText(dateIso, groups, outNames, withNote) {
 function mailText(r) {
   const g = {}; ['AM', 'AS', 'BM', 'BS'].forEach(k => { g[k] = r.teams[k].map(m => m.name); });
   if (!settings().teamB) { g.BM = []; g.BS = []; }
+  if (settings().teamA === false) { g.AM = []; g.AS = []; }
   return rosterText(curWork().date, g, r.out.map(m => m.name), true);
 }
 async function copyText(text, label) {
@@ -2350,7 +2360,7 @@ $('core-minus').onclick = () => setS('core', clampCore(settings().core - 1));
 $('core-plus').onclick = () => setS('core', clampCore(settings().core + 1));
 $('core').addEventListener('change', e => setS('core', clampCore(e.target.value)));
 $('split-tiered').onclick = () => setS('split', 'tiered'); $('split-balanced').onclick = () => setS('split', 'balanced');
-$('teams-ab').onclick = () => setS('teamB', true); $('teams-a').onclick = () => setS('teamB', false);
+$('teams-ab').onclick = () => { setS('teamA', true); setS('teamB', true); }; $('teams-a').onclick = () => { setS('teamA', true); setS('teamB', false); }; $('teams-b').onclick = () => { setS('teamA', false); setS('teamB', true); };
 $('ns-on').onclick = () => setS('noShowPenalty', true); $('ns-off').onclick = () => setS('noShowPenalty', false);
 
 $('kinds').addEventListener('click', e => { const b = e.target.closest('[data-kind]'); if (!b || state.shots.busy) return; state.shots.kind = b.dataset.kind; state.shots.review = null; renderShots(); });
@@ -2650,7 +2660,7 @@ function openEditor(hkey) {
   const r = buildRoster(membersFor(state.event), settings());
   const a = r.assign[m.key]; const s = settings();
   const el = document.createElement('div'); el.id = 'editor'; el.className = 'editor-bg';
-  const moves = MOVES.filter(([v]) => s.teamB || !/^B/.test(v)).map(([v, l]) => '<button class="btn' + (v === (a ? a.slot : '') && v ? ' on' : '') + '" type="button" data-mv="' + v + '">' + l + '</button>').join('');
+  const moves = MOVES.filter(([v]) => (s.teamB !== false || !/^B/.test(v)) && (s.teamA !== false || !/^A/.test(v))).map(([v, l]) => '<button class="btn' + (v === (a ? a.slot : '') && v ? ' on' : '') + '" type="button" data-mv="' + v + '">' + l + '</button>').join('');
   el.innerHTML = '<div class="editor" role="dialog" aria-modal="true"><h3 translate="no">' + esc(m.name) + '</h3>' +
     '<p class="muted">Now: ' + esc(a ? SLOT_LABEL[a.slot] : '') + '</p>' +
     '<label>Power <input id="ed-power" type="text" inputmode="decimal" value="' + (m.power ? esc(fmtPower(m.power)) : '') + '" placeholder="e.g. 45.2M"></label>' +
