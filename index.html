@@ -292,6 +292,17 @@ body.locked #facts, body.locked #sync, body.locked .sub, body.locked .event-ctl 
 #view-link { direction: ltr; }
 details.alt summary { cursor: pointer; font-size: 13.5px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; width: max-content; }
 details.alt[open] summary { margin-bottom: 8px; }
+
+.editor-bg { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 12px; }
+.editor { background: var(--surface); color: var(--text, inherit); border-radius: 12px; padding: 16px; width: min(380px, 100%); max-height: 90vh; overflow: auto; }
+.editor h3 { margin: 0 0 2px; }
+.editor label { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+.editor input { flex: 1; min-width: 0; }
+.editor .row { display: flex; gap: 8px; }
+.editor .row.wrap { flex-wrap: wrap; }
+.editor .btn.on { outline: 2px solid var(--accent); }
+ol.roster li.ed, .chip.ed { cursor: pointer; }
+body.viewer-mode ol.roster li.ed, body.viewer-mode .chip.ed { cursor: default; }
 </style>
 </head>
 <body>
@@ -688,6 +699,7 @@ function waited(n) { return 'Waited ' + n + ' event' + (n === 1 ? '' : 's'); }
 
 function reasonFor(m, slot, opts) {
   if (m._core) return 'Core: top power, always in Team A';
+  if (m._pinned) return 'Placed here by an R4';
   if (m._locked) return 'Locked by an officer';
   if (slot === 'X') return m.ov !== 'X' && m.signedUp === false ? 'Did not sign up for this battle' : 'Marked unavailable';
   const g = gapOf(m);
@@ -702,6 +714,7 @@ function reasonFor(m, slot, opts) {
 // Short label for chips
 function tagFor(m, slot, opts) {
   if (m._core) return 'Core';
+  if (m._pinned) return 'Moved';
   if (m._locked) return 'Locked';
   if (slot === 'X') return m.ov !== 'X' && m.signedUp === false ? 'No sign-up' : 'Away';
   if (penalised(m, opts)) return 'No-show';
@@ -748,9 +761,20 @@ function buildRoster(members, opts) {
   // Away, or did not sign up for this battle: not picked, keeps their place in line
   ms.forEach(m => (m.ov === 'X' || m.signedUp === false || bits(m) === 0 ? put(m, 'X') : avail.push(m)));
   // A team nobody registered for stays empty
-  if (avail.length && !avail.some(canA)) { cap.AM = 0; cap.AS = 0; }
-  if (avail.length && !avail.some(canB)) { cap.BM = 0; cap.BS = 0; }
+  const PINS = ['AM', 'AS', 'BM', 'BS', 'OUT'];
+  const pinnedTo = t => avail.some(m => PINS.indexOf(m.ov) >= 0 && m.ov[0] === t);
+  if (avail.length && !avail.some(canA) && !pinnedTo('A')) { cap.AM = 0; cap.AS = 0; }
+  if (avail.length && !avail.some(canB) && !pinnedTo('B')) { cap.BM = 0; cap.BS = 0; }
   const teamBon = cap.BM > 0;
+
+  // 0. Placed by an R4 (move to a main/sub slot or sit out): honoured first, whatever they signed up for
+  const pinFail = [];
+  avail.filter(m => PINS.indexOf(m.ov) >= 0).sort(byPower).forEach(m => {
+    if (m.ov === 'OUT') { m._pinned = true; put(m, 'OUT'); }
+    else if (teams[m.ov].length < cap[m.ov]) { m._pinned = true; put(m, m.ov); }
+    else pinFail.push(m);
+  });
+  if (pinFail.length) warnings.push(pinFail.length + ' player(s) placed by an R4 did not fit (that slot is full or the team is off) and went into the normal rotation.');
 
   // 1. Officer locks
   const lockedAll = avail.filter(m => m.ov === 'A' || m.ov === 'B');
@@ -793,7 +817,7 @@ function buildRoster(members, opts) {
     return { A, B, F, left };
   }
   const pickM = choose(rest, cap.AM - teams.AM.length, cap.BM - teams.BM.length);
-  const pickS = choose(pickM.left, cap.AS, cap.BS);
+  const pickS = choose(pickM.left, cap.AS - teams.AS.length, cap.BS - teams.BS.length);
   pickS.left.forEach(m => put(m, 'OUT'));
 
   // 4. Split into A and B
@@ -982,6 +1006,10 @@ const I18N = (function () {
     'Oldest on the left': 'الأقدم على اليسار', '#': '#', 'Name': 'الاسم', '1st team power': 'قوة الفريق الأول', 'Last event': 'الحدث السابق', 'Waited': 'الانتظار',
     'Events in a row without a main slot': 'عدد الأحداث المتتالية دون مقعد أساسي', 'Recent': 'الأخيرة', 'Officer': 'الضابط', 'This event': 'هذا الحدث', 'Why': 'السبب',
     'A Main': 'A أساسي', 'A Sub': 'A احتياطي', 'B Main': 'B أساسي', 'B Sub': 'B احتياطي', '—': '—',
+    'Move: Team A main': 'نقل: الفريق A أساسي', 'Move: Team A sub': 'نقل: الفريق A احتياطي', 'Move: Team B main': 'نقل: الفريق B أساسي', 'Move: Team B sub': 'نقل: الفريق B احتياطي', 'Move: sit out': 'نقل: خارج المعركة',
+    'Moved': 'منقول', 'Placed here by an R4': 'وضعه أحد قادة R4 هنا', 'Save power': 'حفظ القوة', 'Move to': 'نقل إلى', 'Remove from alliance': 'إزالة من التحالف', 'Close': 'إغلاق',
+    'Team A main': 'الفريق A أساسي', 'Team A sub': 'الفريق A احتياطي', 'Team B main': 'الفريق B أساسي', 'Team B sub': 'الفريق B احتياطي', 'Sit out': 'خارج المعركة', 'Back to auto': 'رجوع إلى تلقائي', 'Power': 'القوة',
+    'Type a power like 45.2M': 'اكتب القوة مثل 45.2M',
     'Auto': 'تلقائي', 'Lock Team A': 'تثبيت في الفريق A', 'Lock Team B': 'تثبيت في الفريق B', 'Away / unavailable': 'غائب / غير متاح',
     'Unavailable': 'غير متاح', 'Unknown': 'غير معروف', 'No members match.': 'لا يوجد أعضاء مطابقون.', 'not in the alliance': 'ليس في التحالف',
     // step 5
@@ -1105,6 +1133,14 @@ const PAT = [
     [/^Set the Team ([AB]) lineup of the last event \((\d+) main, (\d+) subs\) from (.+)$/, m => 'حدّد تشكيلة الفريق ' + m[1] + ' في الحدث السابق (' + m[2] + ' أساسي، ' + m[3] + ' احتياط) من ' + src(m[4])],
     [/^Checked battle results from (.+): (\d+) no-shows?(?:, (\d+) subs? who fought)?$/, m => 'راجع نتائج المعركة من ' + src(m[1]) + ': ' + pl(m[2], 'noshow') + (m[3] ? '، ' + pl(m[3], 'sub') + ' قاتلوا' : '')],
     [/^Marked (.+) away$/, m => 'حدّد ' + m[1] + ' كغائب'],
+    [/^Moved (.+) to (Team [AB] (?:main|sub)|sitting out)$/, m => 'نقل ' + m[1] + ' إلى ' + ({ 'Team A main': 'الفريق A أساسي', 'Team A sub': 'الفريق A احتياطي', 'Team B main': 'الفريق B أساسي', 'Team B sub': 'الفريق B احتياطي', 'sitting out': 'خارج المعركة' }[m[2]])],
+    [/^Now: (.+)$/, m => 'الآن: ' + (trText(m[1]) || m[1])],
+    [/^(.+) is now (.+)$/, m => m[1] + ' أصبحت قوته ' + m[2]],
+    [/^Removed (.+)$/, m => 'تمت إزالة ' + m[1]],
+    [/^Remove (.+) from the alliance list\?$/, m => 'إزالة ' + m[1] + ' من قائمة التحالف؟'],
+    [/^Changed (.+)'s power to (.+)$/, m => 'غيّر قوة ' + m[1] + ' إلى ' + m[2]],
+    [/^Removed (.+) from the member list$/, m => 'أزال ' + m[1] + ' من قائمة الأعضاء'],
+    [/^(\d+) player\(s\) placed by an R4 did not fit \(that slot is full or the team is off\) and went into the normal rotation\.$/, m => m[1] + ' لاعب وضعهم أحد قادة R4 لم يتّسع لهم المكان (المكان ممتلئ أو الفريق متوقف) وانتقلوا إلى الدور العادي.'],
     [/^Locked (.+) in Team ([AB])$/, m => 'ثبّت ' + m[1] + ' في الفريق ' + m[2]],
     [/^Set (.+) back to auto$/, m => 'أعاد ' + m[1] + ' إلى تلقائي'],
     [/^Set (.+)'s last event to (.+)$/, m => 'غيّر الحدث السابق لـ ' + m[1] + ' إلى ' + (trCore(m[2]) || m[2])],
@@ -1229,7 +1265,7 @@ const KINDS = {
   results: { title: 'Battle results', sub: 'Marks no-shows', help: 'Screenshots of the results or scoreboard after the battle. Registered mains who are missing get marked No-show, and subs who fought get credit as main.', desc: 'the results or scoreboard after an alliance battle, listing the players who took part' }
 };
 const STATUS_OPTS = [['', '—'], ['AM', 'A Main'], ['AS', 'A Sub'], ['BM', 'B Main'], ['BS', 'B Sub'], ['OUT', 'Out'], ['NS', 'No-show']];
-const OV_OPTS = [['', 'Auto'], ['A', 'Lock Team A'], ['B', 'Lock Team B'], ['X', 'Away / unavailable']];
+const OV_OPTS = [['', 'Auto'], ['A', 'Lock Team A'], ['B', 'Lock Team B'], ['X', 'Away / unavailable'], ['AM', 'Move: Team A main'], ['AS', 'Move: Team A sub'], ['BM', 'Move: Team B main'], ['BS', 'Move: Team B sub'], ['OUT', 'Move: sit out']];
 const DEFAULT_SETTINGS = { core: 0, split: 'tiered', teamB: true, noShowPenalty: true };
 const LS_KEY = 'storm-rotation-v2';
 const HISTORY_CAP = 16;
@@ -2120,7 +2156,7 @@ function renderReview() {
 function rosterRow(m, i, a) {
   let tagCls = a.tag.toLowerCase().replace(/[^a-z]/g, '');
   if (a.tag === 'Waited 1' || a.tag === 'Spare') tagCls = '';
-  return '<li title="' + esc(a.reason) + '"><span class="n">' + (i + 1) + '</span><span class="nm" translate="no">' + esc(m.name) + '</span><span class="pw">' + fmtPower(m.power) + '</span><span class="tag ' + tagCls + '">' + esc(a.tag) + '</span></li>';
+  return '<li class="ed" data-h="' + m.hk + '" title="' + esc(a.reason) + '"><span class="n">' + (i + 1) + '</span><span class="nm" translate="no">' + esc(m.name) + '</span><span class="pw">' + fmtPower(m.power) + '</span><span class="tag ' + tagCls + '">' + esc(a.tag) + '</span></li>';
 }
 function group(title, list, cap, assign) {
   let rows = list.map((m, i) => rosterRow(m, i, assign[m.key])).join('');
@@ -2142,7 +2178,7 @@ function renderRoster(r) {
   const nextUp = r.out.filter(m => r.assign[m.key].tag === 'Next').length;
   $('bench-title').textContent = 'Sitting out' + (nextUp ? ' · ' + nextUp + ' first in line next time' : '');
   $('bench-count').textContent = r.out.length + (r.unavailable.length ? ' + ' + r.unavailable.length + ' away' : '');
-  const chip = (m, cls) => { const a = r.assign[m.key]; const t = a.tag; const tagHtml = cls === 'unav' ? '' : '<span class="tag ' + (t === 'Next' ? 'next' : t === 'No-show' ? 'noshow' : '') + '">' + esc(t) + '</span>'; return '<span class="chip ' + (cls || '') + '" title="' + esc(a.reason) + '"><span translate="no">' + esc(m.name) + '</span> <span class="pw">' + fmtPower(m.power) + '</span>' + tagHtml + '</span>'; };
+  const chip = (m, cls) => { const a = r.assign[m.key]; const t = a.tag; const tagHtml = cls === 'unav' ? '' : '<span class="tag ' + (t === 'Next' ? 'next' : t === 'No-show' ? 'noshow' : '') + '">' + esc(t) + '</span>'; return '<span class="chip ed ' + (cls || '') + '" data-h="' + m.hk + '" title="' + esc(a.reason) + '"><span translate="no">' + esc(m.name) + '</span> <span class="pw">' + fmtPower(m.power) + '</span>' + tagHtml + '</span>'; };
   let bench = '';
   if (r.out.length) bench += '<div class="chips">' + r.out.map(m => chip(m)).join('') + '</div>';
   if (r.unavailable.length) bench += '<span class="label">Away</span><div class="chips">' + r.unavailable.map(m => chip(m, 'unav')).join('') + '</div>';
@@ -2370,7 +2406,8 @@ $('ledger').addEventListener('change', e => {
     patch.gap = { [h]: Math.max(0, Math.min(99, Math.round(+t.value || 0))) };
   } else if (act === 'ov') {
     patch.ov = { [h]: t.value };
-    txt = t.value === 'X' ? 'Marked ' + name + ' away' : t.value === 'A' ? 'Locked ' + name + ' in Team A' : t.value === 'B' ? 'Locked ' + name + ' in Team B' : 'Set ' + name + ' back to auto';
+    const MV = { AM: 'Team A main', AS: 'Team A sub', BM: 'Team B main', BS: 'Team B sub', OUT: 'sitting out' };
+    txt = MV[t.value] ? 'Moved ' + name + ' to ' + MV[t.value] : t.value === 'X' ? 'Marked ' + name + ' away' : t.value === 'A' ? 'Locked ' + name + ' in Team A' : t.value === 'B' ? 'Locked ' + name + ' in Team B' : 'Set ' + name + ' back to auto';
   }
   if (S().example) { const src = S(); src.work[state.event] = mergeWork(effectiveWork(state.event), patch); saveLocal(); render(); return; }
   patchWork(state.event, patch, txt);
@@ -2598,6 +2635,58 @@ if (viewHash) {
 } else {
   loadLocal(); state.view = 'gate'; initDone = true; render();
 }
+
+// ================= edit a player from the boards =================
+const MOVES = [['AM', 'Team A main'], ['AS', 'Team A sub'], ['BM', 'Team B main'], ['BS', 'Team B sub'], ['OUT', 'Sit out'], ['', 'Back to auto']];
+function parsePowerInput(v) {
+  const p = parsePowerRaw(v); if (!isFinite(p.n) || p.n <= 0) return NaN;
+  return (!p.suffix && p.n < 10000) ? p.n * 1e6 : p.n;
+}
+function closeEditor() { const e = $('editor'); if (e) e.remove(); }
+function openEditor(hkey) {
+  if (!state.canWrite) return;
+  const m = membersFor(state.event).find(x => x.hk === hkey); if (!m) return;
+  closeEditor();
+  const r = buildRoster(membersFor(state.event), settings());
+  const a = r.assign[m.key]; const s = settings();
+  const el = document.createElement('div'); el.id = 'editor'; el.className = 'editor-bg';
+  const moves = MOVES.filter(([v]) => s.teamB || !/^B/.test(v)).map(([v, l]) => '<button class="btn' + (v === (a ? a.slot : '') && v ? ' on' : '') + '" type="button" data-mv="' + v + '">' + l + '</button>').join('');
+  el.innerHTML = '<div class="editor" role="dialog" aria-modal="true"><h3 translate="no">' + esc(m.name) + '</h3>' +
+    '<p class="muted">Now: ' + esc(a ? SLOT_LABEL[a.slot] : '') + '</p>' +
+    '<label>Power <input id="ed-power" type="text" inputmode="decimal" value="' + (m.power ? esc(fmtPower(m.power)) : '') + '" placeholder="e.g. 45.2M"></label>' +
+    '<div class="row"><button class="btn primary" type="button" id="ed-save">Save power</button></div>' +
+    '<p class="muted" style="margin:10px 0 4px">Move to</p><div class="row wrap">' + moves + '</div>' +
+    '<div class="row" style="margin-top:12px"><button class="btn danger" type="button" id="ed-del">Remove from alliance</button><button class="btn" type="button" id="ed-close">Close</button></div></div>';
+  document.body.appendChild(el);
+  el.addEventListener('click', async e => {
+    if (e.target === el || e.target.id === 'ed-close') return closeEditor();
+    const mv = e.target.closest('[data-mv]');
+    if (mv) {
+      const v = mv.dataset.mv; closeEditor();
+      const MVL = { AM: 'Team A main', AS: 'Team A sub', BM: 'Team B main', BS: 'Team B sub', OUT: 'sitting out' };
+      const txt = v ? 'Moved ' + m.name + ' to ' + MVL[v] : 'Set ' + m.name + ' back to auto';
+      const patch = { ov: { [m.hk]: v } };
+      if (S().example) { const src = S(); src.work[state.event] = mergeWork(effectiveWork(state.event), patch); saveLocal(); render(); return; }
+      return patchWork(state.event, patch, txt);
+    }
+    if (e.target.id === 'ed-save') {
+      const p = parsePowerInput($('ed-power').value);
+      if (!isFinite(p)) return toast('Type a power like 45.2M');
+      const list = S().members.map(x => x.hk === m.hk ? Object.assign({}, x, { power: p }) : x);
+      closeEditor(); toast(m.name + ' is now ' + fmtPower(p));
+      return setMembers(list, 'Changed ' + m.name + "'s power to " + fmtPower(p));
+    }
+    if (e.target.id === 'ed-del') {
+      if (!window.confirm('Remove ' + m.name + ' from the alliance list?')) return;
+      const list = S().members.filter(x => x.hk !== m.hk);
+      closeEditor(); toast('Removed ' + m.name);
+      return setMembers(list, 'Removed ' + m.name + ' from the member list');
+    }
+  });
+  const pw = $('ed-power'); if (pw) pw.focus();
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeEditor(); });
+['boards', 'bench'].forEach(id => $(id).addEventListener('click', e => { const t = e.target.closest('.ed'); if (t && t.dataset.h) openEditor(t.dataset.h); }));
 })();
 
 </script>
