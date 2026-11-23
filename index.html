@@ -217,9 +217,12 @@ pre.mail { white-space: pre-wrap; background: var(--surface-2); border-radius: v
 .shotzone.over { border-color: var(--accent); background: var(--accent-soft); }
 .shotzone p { margin: 0; color: var(--muted); font-size: 13.5px; max-width: 70ch; }
 .thumbs { display: flex; flex-wrap: wrap; gap: 8px; }
-.thumb { position: relative; width: 72px; height: 128px; border-radius: 4px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); }
+.thumb { width: 92px; display: flex; flex-direction: column; gap: 4px; }
+.thumb .pic { position: relative; width: 92px; height: 164px; border-radius: 4px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); }
 .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.thumb button { position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; border-radius: 50%; border: 0; background: rgba(0,0,0,.65); color: #fff; cursor: pointer; font-size: 14px; line-height: 22px; padding: 0; }
+.thumb .n { position: absolute; left: 4px; bottom: 4px; background: rgba(0,0,0,.65); color: #fff; font-size: 12px; line-height: 1; padding: 3px 6px; border-radius: 10px; }
+.thumb button { width: 100%; min-height: 40px; border-radius: var(--radius); border: 1.5px solid var(--line); background: var(--surface); color: inherit; cursor: pointer; font: inherit; font-size: 13px; padding: 0 6px; }
+.thumb button:hover { border-color: var(--accent, #c0562b); }
 .progress { display: flex; align-items: center; gap: 10px; font-size: 14px; }
 .spinner { width: 16px; height: 16px; border: 2.5px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -262,7 +265,7 @@ pre.mail { white-space: pre-wrap; background: var(--surface-2); border-radius: v
 [dir="rtl"] .banner { border-left: 0; border-right: 4px solid var(--accent); border-radius: var(--radius) 0 0 var(--radius); }
 [dir="rtl"] .banner.warn { border-right-color: var(--bad); }
 [dir="rtl"] .seg button + button { border-left: 0; border-right: 1.5px solid var(--ink); }
-[dir="rtl"] .thumb button { right: auto; left: 3px; }
+[dir="rtl"] .thumb .n { left: auto; right: 4px; }
 [dir="rtl"] th, [dir="rtl"] td { text-align: right; }
 [dir="rtl"] td.r, [dir="rtl"] th.r, [dir="rtl"] .board-h .meta, [dir="rtl"] ol.roster .n { text-align: left; }
 [dir="rtl"] .facts .dot { margin-right: 0; margin-left: 6px; }
@@ -986,6 +989,7 @@ const I18N = (function () {
     'The newest roster before the battle date counts as the last event.': 'أحدث تشكيلة قبل تاريخ المعركة تُحتسب كالحدث السابق.',
     'View': 'عرض', 'Delete': 'حذف', 'Confirm delete': 'تأكيد الحذف', 'last event': 'الحدث السابق', 'this battle': 'هذه المعركة',
     'Copy this roster': 'نسخ هذه التشكيلة',
+    'Remove': 'إزالة',
     'Sign-ups · Team A': 'التسجيلات · الفريق A', 'Sign-ups · Team B': 'التسجيلات · الفريق B',
     'Who registered for Team A': 'من سجّل في الفريق A', 'Who registered for Team B': 'من سجّل في الفريق B',
     'Screenshots of the members who registered for Team A (main and subs) for the next battle. Only they can be picked for Team A. Upload Team B separately.': 'لقطات للأعضاء المسجّلين في الفريق A (أساسيون واحتياط) للمعركة القادمة. يتم الاختيار منهم فقط للفريق A. ارفع الفريق B بشكل منفصل.',
@@ -2042,7 +2046,7 @@ function renderShots() {
   if (state.mode !== 'db') help = 'Connect to your alliance space to read screenshots. You can still type names below.';
   else if (!geminiKey()) help = 'To read screenshots, add a free Gemini API key in step 06 (one R4 does this once for everyone). You can still type names below.';
   $('kind-help').textContent = help;
-  $('thumbs').innerHTML = sh.files.map((f, i) => '<div class="thumb"><img src="' + f.url + '" alt="Screenshot ' + (i + 1) + '"><button type="button" data-rm="' + i + '" aria-label="Remove screenshot ' + (i + 1) + '">×</button></div>').join('');
+  $('thumbs').innerHTML = sh.files.map((f, i) => '<div class="thumb"><div class="pic"><img src="' + f.url + '" alt="Screenshot ' + (i + 1) + '"><span class="n">' + (i + 1) + '</span></div><button type="button" data-rm="' + i + '" aria-label="Remove screenshot ' + (i + 1) + '"' + (sh.busy ? ' disabled' : '') + '>Remove</button></div>').join('');
   $('btn-read').classList.toggle('hidden', !sh.files.length || sh.busy || !canRead);
   $('btn-read').textContent = 'Read ' + sh.files.length + ' screenshot' + (sh.files.length === 1 ? '' : 's');
   $('btn-clear-shots').classList.toggle('hidden', !sh.files.length || sh.busy);
