@@ -270,6 +270,19 @@ pre.mail { white-space: pre-wrap; background: var(--surface-2); border-radius: v
 #r4-link, #key-input, #ta-config, .review td input[type="text"], td input[type="number"] { direction: ltr; }
 [dir="rtl"] #r4-link, [dir="rtl"] #key-input { text-align: left; }
 label.su { font-size: 12.5px; color: var(--muted); white-space: nowrap; margin-inline-start: 6px; }
+body.viewer-mode .app-only, body.viewer-mode #gate, body.viewer-mode #banners, body.viewer-mode #facts, body.viewer-mode #sync, body.viewer-mode #s6-panel, body.viewer-mode label.field[for="battle-date"], body.viewer-mode #lock { display: none !important; }
+body.viewer-mode .sub { display: none; }
+body.locked #facts, body.locked #sync, body.locked .sub, body.locked .event-ctl > :not([translate="no"]) { display: none !important; }
+#viewer .vsearch { max-width: 360px; }
+#viewer .vnote { margin: 0; }
+.chip.hit, ol.roster li.hit { outline: 2px solid var(--accent); background: var(--accent-soft, #fff3d6); }
+.vteams { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.vteam h3 { margin: 0 0 6px; }
+.vteam ol { margin: 0 0 12px; padding: 0; list-style: none; }
+.vteam li { display: flex; gap: 10px; padding: 3px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.vteam li .n { width: 24px; color: var(--muted); text-align: right; flex: none; }
+#lock input, #pw-input, #view-link { width: 100%; }
+#view-link { direction: ltr; }
 details.alt summary { cursor: pointer; font-size: 13.5px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; width: max-content; }
 details.alt[open] summary { margin-bottom: 8px; }
 </style>
@@ -329,6 +342,30 @@ details.alt[open] summary { margin-bottom: 8px; }
         </div>
       </div>
       <p class="muted small">Just looking? <button class="btn ghost" type="button" id="btn-try">Try it with example data</button></p>
+    </div>
+  </section>
+
+  <!-- LOCK -->
+  <section class="panel hidden" id="lock" aria-labelledby="lk1">
+    <div class="panel-h"><h2 id="lk1"><span class="step">🔒</span>R4 password</h2></div>
+    <div class="panel-b bench">
+      <p>This alliance space is protected. Enter the R4 password to open it. You only need to do this once on each device.</p>
+      <div class="status-line err hidden" id="lock-error"><span class="pip"></span><span></span></div>
+      <label class="label" for="lock-pw">R4 password</label>
+      <input id="lock-pw" class="search" type="password" autocomplete="current-password" style="max-width:360px">
+      <div class="row"><button class="btn accent" type="button" id="btn-unlock">Open</button></div>
+      <p class="muted small">Not an R4? Ask for the member link instead. It only shows the lineups.</p>
+    </div>
+  </section>
+
+  <!-- MEMBER VIEW -->
+  <section class="panel hidden" id="viewer" aria-labelledby="vw1">
+    <div class="panel-h"><h2 id="vw1" translate="no">ONE1 <span id="vw-title"></span></h2></div>
+    <div class="panel-b bench">
+      <div class="status-line" id="vw-status"><span class="pip"></span><span class="txt"></span></div>
+      <input id="vw-search" class="search vsearch" placeholder="Find your name" aria-label="Find your name">
+      <p class="muted small vnote">View only. Lineups are chosen by the R4s.</p>
+      <div id="vw-body"></div>
     </div>
   </section>
 
@@ -514,7 +551,17 @@ details.alt[open] summary { margin-bottom: 8px; }
       <div class="bench">
         <span class="label">R4 link</span>
         <div class="row-input"><input id="r4-link" class="search" readonly aria-label="R4 link"><button class="btn primary" type="button" id="btn-copy-link">Copy</button></div>
-        <p class="muted small">Anyone with this link can see and change the roster, with no login. Send it only to your R4s in a private chat. If it ever leaks, create a new space and restore a backup there.</p>
+        <p class="muted small">This link is for R4s only. Once an R4 password is set, new devices need that password to open it. Send it only to your R4s in a private chat. For members, use the member link below.</p>
+        <span class="label">R4 password</span>
+        <p id="pw-status" class="small"></p>
+        <div class="row-input"><input id="pw-input" class="search" type="text" autocomplete="off" placeholder="Choose a password (8+ characters)" aria-label="New R4 password"><button class="btn" type="button" id="btn-pw-gen">Generate</button></div>
+        <div class="actions"><button class="btn accent" type="button" id="btn-pw-save">Set password</button></div>
+        <p class="muted small">New devices must enter this password to open the R4 link. Write it down: it cannot be shown again. Devices that are already open stay open.</p>
+        <span class="label">Member link · view only</span>
+        <p id="view-status" class="small"></p>
+        <div class="row-input hidden" id="view-row"><input id="view-link" class="search" readonly aria-label="Member link"><button class="btn primary" type="button" id="btn-copy-view">Copy</button></div>
+        <div class="actions"><button class="btn accent" type="button" id="btn-view-on">Turn on member link</button><button class="btn hidden" type="button" id="btn-view-publish">Publish now</button><button class="btn danger hidden" type="button" id="btn-view-new">New link</button></div>
+        <p class="muted small">Members see the saved Team A and Team B lineups and who sits out. No power, no scores, and they cannot change anything. The page updates when you press Save roster.</p>
         <label class="label" for="my-name">Your name</label>
         <input id="my-name" class="search" placeholder="Your name in game" maxlength="40">
         <p class="muted small">Shown in Recent changes so R4s know who did what. Saved on this device only.</p>
@@ -861,6 +908,29 @@ const I18N = (function () {
     'The first 40 in line play main, the next 20 are subs, the rest sit out. Power then decides Team A or Team B.': 'أول 40 في الدور أساسيون، و20 التالون احتياط، والباقون خارج المشاركة. ثم تحدد القوة الفريق A أو B.',
     // step 3
     'Copy for alliance mail': 'نسخ لبريد التحالف', 'Save roster': 'حفظ التشكيلة', 'Update saved roster': 'تحديث التشكيلة المحفوظة',
+    // R4 password + member link
+    'R4 password': 'كلمة مرور الـR4', 'Open': 'فتح', 'Generate': 'توليد', 'Set password': 'تعيين كلمة المرور', 'Change password': 'تغيير كلمة المرور',
+    'This alliance space is protected. Enter the R4 password to open it. You only need to do this once on each device.': 'مساحة التحالف هذه محمية. أدخل كلمة مرور الـR4 لفتحها. تحتاج لذلك مرة واحدة فقط على كل جهاز.',
+    'Not an R4? Ask for the member link instead. It only shows the lineups.': 'لست R4؟ اطلب رابط الأعضاء بدلًا من ذلك. فهو يعرض التشكيلات فقط.',
+    'That password is not right.': 'كلمة المرور غير صحيحة.',
+    'No password yet. Anyone with the R4 link can change the roster.': 'لا توجد كلمة مرور بعد. يمكن لأي شخص لديه رابط الـR4 تغيير التشكيلة.',
+    'A password is set. New devices must enter it.': 'تم تعيين كلمة مرور. على الأجهزة الجديدة إدخالها.',
+    'Choose a password (8+ characters)': 'اختر كلمة مرور (8 أحرف فأكثر)', 'New R4 password': 'كلمة مرور الـR4 الجديدة',
+    'New devices must enter this password to open the R4 link. Write it down: it cannot be shown again. Devices that are already open stay open.': 'على الأجهزة الجديدة إدخال كلمة المرور هذه لفتح رابط الـR4. دوّنها: لا يمكن عرضها مرة أخرى. الأجهزة المفتوحة مسبقًا تبقى مفتوحة.',
+    'Member link · view only': 'رابط الأعضاء · للعرض فقط', 'Member link': 'رابط الأعضاء',
+    'The member link is off.': 'رابط الأعضاء متوقف.', 'The member link is on. Send it to your members.': 'رابط الأعضاء يعمل. أرسله إلى أعضائك.',
+    'Turn on member link': 'تشغيل رابط الأعضاء', 'Publish now': 'نشر الآن', 'New link': 'رابط جديد', 'Confirm: the old link stops working': 'تأكيد: سيتوقف الرابط القديم عن العمل',
+    'Members see the saved Team A and Team B lineups and who sits out. No power, no scores, and they cannot change anything. The page updates when you press Save roster.': 'يرى الأعضاء تشكيلتي الفريق A والفريق B المحفوظتين ومن هو خارج المشاركة. بلا قوة وبلا نتائج، ولا يمكنهم تغيير أي شيء. تتحدث الصفحة عند الضغط على «حفظ التشكيلة».',
+    'Password set. Write it down.': 'تم تعيين كلمة المرور. دوّنها.', 'Published to the member link': 'تم النشر على رابط الأعضاء',
+    'Could not publish. Set the R4 password first, and publish the new security rules.': 'تعذر النشر. عيّن كلمة مرور الـR4 أولًا وانشر قواعد الأمان الجديدة.',
+    'Could not publish. Check your connection.': 'تعذر النشر. تحقق من الاتصال.',
+    'Use at least 8 characters, or press Generate.': 'استخدم 8 أحرف على الأقل أو اضغط «توليد».',
+    'Firebase refused this. Publish the new security rules first (setup step 4).': 'رفض Firebase هذا. انشر قواعد الأمان الجديدة أولًا (الخطوة 4 من الإعداد).',
+    'Set the R4 password': 'تعيين كلمة مرور الـR4', 'Turned on the member link': 'تم تشغيل رابط الأعضاء', 'Made a new member link': 'تم إنشاء رابط أعضاء جديد',
+    'Find your name': 'ابحث عن اسمك', 'View only. Lineups are chosen by the R4s.': 'للعرض فقط. يختار الـR4 التشكيلات.',
+    'No player with that name in this lineup.': 'لا يوجد لاعب بهذا الاسم في هذه التشكيلة.',
+    'This link is not active. Ask your R4 for the current member link.': 'هذا الرابط غير فعّال. اطلب من الـR4 رابط الأعضاء الحالي.',
+    'Could not load the lineup. Check your internet and reload.': 'تعذر تحميل التشكيلة. تحقق من الإنترنت وأعد تحميل الصفحة.',
     'Registered': 'مسجّل', 'Sitting out': 'خارج المشاركة', 'Away': 'غائب', 'Main power': 'قوة الأساسيين', 'Avg': 'المتوسط', 'Top': 'الأعلى',
     'Team A': 'الفريق A', 'Team B': 'الفريق B', 'Nobody': 'لا أحد', 'Nobody sits out this time.': 'لا أحد خارج المشاركة هذه المرة.',
     'waited but no slot was left; first in line next time.': 'انتظر لكن لم يتبقَّ مكان؛ الأول في الدور المرة القادمة.',
@@ -895,7 +965,7 @@ const I18N = (function () {
     'Scores are saved for R4s to see. They do not change the rotation.': 'تُحفظ النتائج ليطّلع عليها الـR4. لا تؤثر على التناوب.', 'Close': 'إغلاق', 'No changes yet.': 'لا توجد تغييرات بعد.', 'You': 'أنت', 'An R4': 'أحد الـR4', 'just now': 'الآن',
     // step 6
     'Alliance settings': 'إعدادات التحالف', 'R4 link': 'رابط الـR4', 'Copy': 'نسخ',
-    'Anyone with this link can see and change the roster, with no login. Send it only to your R4s in a private chat. If it ever leaks, create a new space and restore a backup there.': 'أي شخص لديه هذا الرابط يمكنه رؤية التشكيلة وتعديلها بدون تسجيل دخول. أرسله فقط للـR4 في محادثة خاصة. إذا تسرّب، أنشئ مساحة جديدة واستعد نسخة احتياطية فيها.',
+    'This link is for R4s only. Once an R4 password is set, new devices need that password to open it. Send it only to your R4s in a private chat. For members, use the member link below.': 'هذا الرابط للـR4 فقط. بعد تعيين كلمة مرور الـR4 تحتاج الأجهزة الجديدة إلى كلمة المرور لفتحه. أرسله إلى الـR4 فقط في محادثة خاصة. للأعضاء استخدم رابط الأعضاء أدناه.',
     'Your name': 'اسمك', 'Shown in Recent changes so R4s know who did what. Saved on this device only.': 'يظهر في آخر التغييرات ليعرف الـR4 من قام بماذا. يُحفظ على هذا الجهاز فقط.',
     'Screenshot reading · Gemini API key': 'قراءة لقطات الشاشة · مفتاح Gemini API', 'Paste a Gemini API key': 'الصق مفتاح Gemini API', 'Gemini API key': 'مفتاح Gemini API',
     'Save key': 'حفظ المفتاح', 'Test key': 'اختبار المفتاح', 'Remove key': 'إزالة المفتاح', 'Get a free key at': 'احصل على مفتاح مجاني من',
@@ -958,6 +1028,11 @@ const I18N = (function () {
     [/^The (.+) battle is over\. Start the next roster: this lineup becomes the last event\. Upload the battle results first if you want no-shows marked\.$/, m => 'انتهت معركة ' + date(m[1]) + '. ابدأ التشكيلة التالية: ستصبح هذه التشكيلة هي الحدث السابق. ارفع نتائج المعركة أولًا إذا أردت تحديد الغائبين.'],
     [/^Start the (.+) roster$/, m => 'بدء تشكيلة ' + date(m[1])],
     [/^Roster saved for (.+)$/, m => 'تم حفظ التشكيلة لـ ' + date(m[1])],
+    [/^(Desert Storm|Canyon Storm) lineup for (.+?) · updated (.+)$/, m => 'تشكيلة ' + ev(m[1]) + ' ليوم ' + (trCore(m[2]) || m[2]) + ' · آخر تحديث ' + (trCore(m[3]) || m[3])],
+    [/^No (Desert Storm|Canyon Storm) lineup has been published yet\.$/, m => 'لم تُنشر تشكيلة ' + ev(m[1]) + ' بعد.'],
+    [/^(Main|Subs|Sitting out) · (\d+)$/, m => (trCore(m[1]) || m[1]) + ' · ' + m[2]],
+    [/^→ Team ([AB]) · (Main|Subs)$/, m => '← الفريق ' + m[1] + ' · ' + (trCore(m[2]) || m[2])],
+    [/^→ Sitting out$/, () => '← خارج المشاركة'],
     [/^Sitting out$/, () => 'خارج المشاركة'],
     [/^(\d+) first in line next time$/, m => m[1] + ' في أول الدور المرة القادمة'],
     [/^(\d+) \+ (\d+) away$/, m => m[1] + ' + ' + m[2] + ' غائب'],
@@ -1314,6 +1389,7 @@ async function saveRoster() {
   const evId = state.event; const { w, rows } = rosterRows(evId);
   await setHistory(evId, withEntry(evId, w.date, rows, w.settings), 'Saved the ' + EVENTS[evId].name + ' roster for ' + fmtShortEn(w.date));
   toast('Roster saved for ' + fmtShort(w.date));
+  if (state.mode === 'db') publishViews(true);
 }
 // Battle is over: keep what was played as history, then make it the "last event" of the next battle.
 async function rollForward(evId) {
@@ -1412,17 +1488,24 @@ function makeAdapter(fs, code) {
   }; return api; };
   return { doc, collection };
 }
-async function connect(c) {
-  if (!window.firebase || !firebase.initializeApp) { connErr = 'Could not load Firebase. Check your internet connection and reload.'; render(); return false; }
-  try {
-    if (!firebase.apps.length) firebase.initializeApp(c.cfg);
-    await firebase.auth().signInAnonymously();
-    fsDb = firebase.firestore();
-    db = makeAdapter(fsDb, c.code);
-  } catch (e) { connErr = firebaseErrorText(e); render(); return false; }
-  conn = c; saveConn(c); connErr = '';
-  state.mode = 'db'; state.me = myName(); state.remoteActive = true; state.view = 'app';
-  if (state.local.example) state.local = blankSource();
+async function sha(pw) {
+  const b = new TextEncoder().encode('one1-storm:' + pw);
+  const h = await crypto.subtle.digest('SHA-256', b);
+  return Array.from(new Uint8Array(h), x => x.toString(16).padStart(2, '0')).join('');
+}
+function genPassword() {
+  const w = ['sand', 'dune', 'falcon', 'canyon', 'storm', 'iron', 'ember', 'cobalt', 'raven', 'cedar', 'delta', 'amber', 'tiger', 'comet', 'ridge', 'onyx'];
+  const a = new Uint8Array(4); crypto.getRandomValues(a);
+  return w[a[0] % 16] + '-' + w[a[1] % 16] + '-' + w[a[2] % 16] + '-' + (10 + (a[3] % 90));
+}
+const myUid = () => (firebase.auth().currentUser || {}).uid || '';
+// 'ok' = this device is an R4 admin, 'open' = no password set yet, 'locked' = password needed
+async function accessCheck(code) {
+  try { const a = await fsDb.doc('admins/' + myUid()).get(); if (a.exists) return 'ok'; } catch (e) { /* older rules: no admins path */ }
+  try { await fsDb.doc('alliances/' + code + '/data/config').get(); return 'open'; }
+  catch (e) { if (e && e.code === 'permission-denied') return 'locked'; throw e; }
+}
+function attach() {
   const timer = setTimeout(() => { if (!state.remoteSeen.members) toast('Shared data is taking long to load. Check your connection.'); }, 10000);
   const rerender = () => { activate(); render(); };
   const err = () => { /* listener ended; keep what we have */ };
@@ -1437,7 +1520,60 @@ async function connect(c) {
     db.doc('storm/' + k).onSnapshot(x => { state.remoteSeen[k] = true; state.remote.saved[k] = x.exists ? parseHistoryDoc(x.data()) : []; rerender(); }, err);
   });
   db.collection('log').orderBy('at', 'desc').limit(15).onSnapshot(x => { state.remote.log = x.docs.map(d => d.data()).filter(y => y && y.text); renderLog(); renderSync(); }, err);
+}
+async function connect(c) {
+  if (!window.firebase || !firebase.initializeApp) { connErr = 'Could not load Firebase. Check your internet connection and reload.'; render(); return false; }
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(c.cfg);
+    await firebase.auth().signInAnonymously();
+    fsDb = firebase.firestore();
+    db = makeAdapter(fsDb, c.code);
+    state.access = await accessCheck(c.code);
+  } catch (e) { connErr = firebaseErrorText(e); render(); return false; }
+  conn = c; saveConn(c); connErr = '';
+  state.mode = 'db'; state.me = myName(); state.remoteActive = true; state.view = 'app';
+  if (state.local.example) state.local = blankSource();
+  if (state.access === 'locked') { state.locked = true; render(); return true; }
+  attach();
   return true;
+}
+let lockErr = '';
+function renderLock() {
+  const e = $('lock-error'); e.classList.toggle('hidden', !lockErr); e.lastElementChild.textContent = lockErr;
+}
+async function unlock() {
+  const pw = $('lock-pw').value; if (!pw) return;
+  const btn = $('btn-unlock'); btn.disabled = true; lockErr = '';
+  try { await fsDb.doc('admins/' + myUid()).set({ h: await sha(pw), at: nowIso() }); }
+  catch (e) { lockErr = e && e.code === 'permission-denied' ? 'That password is not right.' : firebaseErrorText(e); renderLock(); btn.disabled = false; return; }
+  btn.disabled = false; $('lock-pw').value = '';
+  state.locked = false; state.access = 'ok'; attach(); render();
+}
+// ---- member view: a read-only copy of the saved lineups, no power and no scores ----
+const viewCode = () => (state.remote.config && state.remote.config.viewCode) || '';
+const viewLink = () => (viewCode() ? location.origin + location.pathname + '#v=' + viewCode() : '');
+function viewSnap(k) {
+  const h = (state.remote.saved[k] || [])[0]; if (!h) return null;
+  const by = sl => h.rows.filter(x => x.s === sl).sort((a, b) => b.p - a.p || a.n.localeCompare(b.n)).map(x => x.n);
+  return { date: h.date, savedAt: h.savedAt || '', AM: by('AM'), AS: by('AS'), BM: by('BM'), BS: by('BS'), OUT: by('OUT') };
+}
+async function publishViews(quiet) {
+  const vc = viewCode(); if (!vc || state.mode !== 'db' || !fsDb) return false;
+  const doc = { updatedAt: nowIso() };
+  ['ds', 'cs'].forEach(k => { const v = viewSnap(k); if (v) doc[k] = v; });
+  try { await fsDb.doc('views/' + vc).set(doc); if (!quiet) toast('Published to the member link'); return true; }
+  catch (e) { toast(e && e.code === 'permission-denied' ? 'Could not publish. Set the R4 password first, and publish the new security rules.' : 'Could not publish. Check your connection.'); return false; }
+}
+function renderMemberSettings() {
+  const open = state.access === 'open';
+  $('pw-status').textContent = open ? 'No password yet. Anyone with the R4 link can change the roster.' : 'A password is set. New devices must enter it.';
+  $('btn-pw-save').textContent = open ? 'Set password' : 'Change password';
+  const vc = viewCode();
+  $('view-row').classList.toggle('hidden', !vc);
+  if (vc && $('view-link').value !== viewLink()) $('view-link').value = viewLink();
+  $('btn-view-on').classList.toggle('hidden', !!vc);
+  $('btn-view-publish').classList.toggle('hidden', !vc); $('btn-view-new').classList.toggle('hidden', !vc);
+  $('view-status').textContent = vc ? 'The member link is on. Send it to your members.' : 'The member link is off.';
 }
 async function createSpace(cfg) {
   const c = { cfg, code: newCode() };
@@ -1736,13 +1872,17 @@ function pasteRows(text) {
 
 // ================= rendering =================
 function render() {
+  if (state.viewer) return renderViewer();
   const connected = state.mode === 'db';
+  $('lock').classList.toggle('hidden', !state.locked);
+  document.body.classList.toggle('locked', !!state.locked);
+  if (state.locked) { $('gate').classList.add('hidden'); document.querySelectorAll('.app-only').forEach(el => el.classList.add('hidden')); $('s6-panel').classList.add('hidden'); renderLock(); return; }
   const showApp = connected || state.view === 'app';
   $('gate').classList.toggle('hidden', showApp);
   document.querySelectorAll('.app-only').forEach(el => el.classList.toggle('hidden', !showApp));
   $('s6-panel').classList.toggle('hidden', !connected);
   $('btn-example').classList.toggle('hidden', connected);
-  renderGate(); renderSettings();
+  renderGate(); renderSettings(); renderMemberSettings();
   const E = EVENTS[state.event]; const w = curWork(); const s = w.settings;
   document.documentElement.setAttribute('data-event', state.event);
   $('ev-ds').setAttribute('aria-pressed', String(state.event === 'ds'));
@@ -2247,6 +2387,79 @@ $('btn-disconnect').onclick = e => {
   location.reload();
 };
 
+$('btn-unlock').onclick = unlock;
+$('lock-pw').addEventListener('keydown', e => { if (e.key === 'Enter') unlock(); });
+$('btn-pw-gen').onclick = () => { $('pw-input').value = genPassword(); };
+$('btn-pw-save').onclick = async () => {
+  const pw = $('pw-input').value.trim(); const ps = $('pw-status');
+  if (pw.length < 8) { ps.textContent = 'Use at least 8 characters, or press Generate.'; return; }
+  const btn = $('btn-pw-save'); btn.disabled = true;
+  try {
+    const h = await sha(pw), at = nowIso();
+    if (state.access === 'open') await fsDb.doc('auth/cfg').set({ h, at, by: myName() || '' });
+    else await fsDb.doc('auth/cfg').update({ h, at, by: myName() || '' });
+    await fsDb.doc('admins/' + myUid()).set({ h, at });
+    state.access = 'ok'; $('pw-input').value = ''; renderMemberSettings();
+    toast('Password set. Write it down.'); addLog('Set the R4 password');
+  } catch (e) { ps.textContent = e && e.code === 'permission-denied' ? 'Firebase refused this. Publish the new security rules first (setup step 4).' : firebaseErrorText(e); }
+  btn.disabled = false;
+};
+$('btn-copy-view').onclick = () => copyText(viewLink(), 'Member link');
+$('btn-view-on').onclick = async () => {
+  try { await db.doc('storm/config').update({ viewCode: newCode().slice(0, 16) }); }
+  catch (e) { return writeFailed(e); }
+  addLog('Turned on the member link');
+  setTimeout(() => publishViews(), 600);
+};
+$('btn-view-publish').onclick = () => publishViews();
+$('btn-view-new').onclick = e => {
+  const b = e.target;
+  if (b.dataset.confirm !== '1') { b.dataset.confirm = '1'; b.textContent = 'Confirm: the old link stops working'; setTimeout(() => { if (b.isConnected) { b.dataset.confirm = ''; b.textContent = 'New link'; } }, 4000); return; }
+  b.dataset.confirm = ''; b.textContent = 'New link';
+  const old = viewCode();
+  db.doc('storm/config').update({ viewCode: newCode().slice(0, 16) }).then(async () => {
+    try { await fsDb.doc('views/' + old).delete(); } catch (er) { /* best effort */ }
+    addLog('Made a new member link'); setTimeout(() => publishViews(), 600);
+  }, writeFailed);
+};
+
+// ================= member view (read-only page) =================
+function readViewFromHash() { const m = /[#&]v=([A-Za-z0-9]{12,})/.exec(location.hash || ''); return m ? m[1] : null; }
+function renderViewer() {
+  const V = state.viewer;
+  document.body.classList.add('viewer-mode');
+  $('viewer').classList.remove('hidden');
+  $('ev-ds').setAttribute('aria-pressed', String(state.event === 'ds')); $('ev-cs').setAttribute('aria-pressed', String(state.event === 'cs'));
+  $('vw-title').textContent = EVENTS[state.event].name;
+  const st = $('vw-status'), body = $('vw-body'); const d = V.data && V.data[state.event];
+  if (V.err) { st.className = 'status-line err'; st.querySelector('.txt').textContent = V.err; body.innerHTML = ''; return; }
+  if (!V.loaded) { st.className = 'status-line'; st.querySelector('.txt').textContent = 'Loading…'; body.innerHTML = ''; return; }
+  if (!V.data) { st.className = 'status-line err'; st.querySelector('.txt').textContent = 'This link is not active. Ask your R4 for the current member link.'; body.innerHTML = ''; return; }
+  if (!d) { st.className = 'status-line'; st.querySelector('.txt').textContent = 'No ' + EVENTS[state.event].name + ' lineup has been published yet.'; body.innerHTML = ''; return; }
+  st.className = 'status-line ok'; st.querySelector('.txt').textContent = EVENTS[state.event].name + ' lineup for ' + fmtDay(d.date) + ' · updated ' + ago(d.savedAt || V.data.updatedAt);
+  const q = (V.q || '').trim().toLowerCase(); const found = [];
+  const hit = (n, label) => { const on = !!q && n.toLowerCase().includes(q); if (on) found.push([n, label]); return on; };
+  const list = (title, arr, label) => '<h4 class="label" style="margin:8px 0 4px">' + title + ' · ' + arr.length + '</h4><ol>' + (arr.length ? arr.map((n, i) => '<li' + (hit(n, label) ? ' class="hit"' : '') + '><span class="n">' + (i + 1) + '</span><span translate="no">' + esc(n) + '</span></li>').join('') : '<li class="muted">Nobody</li>') + '</ol>';
+  let html = '<div class="vteams"><div class="vteam"><h3>Team A</h3>' + list('Main', d.AM, 'Team A · Main') + list('Subs', d.AS, 'Team A · Subs') + '</div>';
+  if (d.BM.length || d.BS.length) html += '<div class="vteam"><h3>Team B</h3>' + list('Main', d.BM, 'Team B · Main') + list('Subs', d.BS, 'Team B · Subs') + '</div>';
+  html += '</div>';
+  if (d.OUT.length) html += '<h4 class="label" style="margin:12px 0 6px">Sitting out · ' + d.OUT.length + '</h4><div class="chips">' + d.OUT.map(n => '<span class="chip' + (hit(n, 'Sitting out') ? ' hit' : '') + '" translate="no">' + esc(n) + '</span>').join('') + '</div>';
+  if (q) html = '<p class="vnote"><b>' + (found.length ? found.map(f => '<span translate="no">' + esc(f[0]) + '</span> → ' + f[1]).join('<br>') : 'No player with that name in this lineup.') + '</b></p>' + html;
+  body.innerHTML = html;
+}
+async function startViewer(vc) {
+  state.viewer = { vc, data: null, loaded: false, err: '', q: '' };
+  render();
+  $('vw-search').addEventListener('input', e => { state.viewer.q = e.target.value; render(); });
+  try {
+    if (!window.firebase || !firebase.initializeApp) throw { code: 'load' };
+    if (!firebase.apps.length) firebase.initializeApp(BUILTIN_CFG);
+    await firebase.auth().signInAnonymously();
+    firebase.firestore().doc('views/' + vc).onSnapshot(x => { state.viewer.data = x.exists ? x.data() : null; state.viewer.loaded = true; state.viewer.err = ''; render(); },
+      e => { state.viewer.err = e && e.code === 'permission-denied' ? 'This link is not active. Ask your R4 for the current member link.' : 'Could not load the lineup. Check your internet and reload.'; render(); });
+  } catch (e) { state.viewer.err = 'Could not load the lineup. Check your internet and reload.'; render(); }
+}
+
 // ================= language =================
 function renderLang() { $('lang-en').setAttribute('aria-pressed', String(I18N.lang === 'en')); $('lang-ar').setAttribute('aria-pressed', String(I18N.lang === 'ar')); }
 function switchLang(l) { I18N.set(l); renderLang(); $('history-view').classList.add('hidden'); render(); }
@@ -2256,11 +2469,14 @@ $('lang-ar').onclick = () => switchLang('ar');
 // ================= boot =================
 I18N.start(); renderLang();
 initSample(); samplesChecked = true;
-const fromHash = readJoinFromHash();
+const viewHash = readViewFromHash();
+const fromHash = viewHash ? null : readJoinFromHash();
 if (fromHash) { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* ignore */ } }
 const startConn = fromHash && fromHash !== 'bad' ? fromHash : loadConn();
 if (fromHash === 'bad') connErr = 'This R4 link is incomplete. Ask for the link again and copy all of it.';
-if (startConn) {
+if (viewHash) {
+  initDone = true; startViewer(viewHash);
+} else if (startConn) {
   state.view = 'app'; render();
   connect(startConn).then(ok => { initDone = true; if (!ok) state.view = 'gate'; render(); });
 } else {

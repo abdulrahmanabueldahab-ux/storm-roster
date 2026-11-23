@@ -27,16 +27,36 @@ In Firestore, open the **Rules** tab, replace everything with the rules below, a
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isR4() { return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+    function passwordSet() { return exists(/databases/$(database)/documents/auth/cfg); }
+
+    // The R4 data. Open to anyone with the private code until an R4 password is set, then R4 devices only.
     match /alliances/{code}/{group}/{docId} {
-      allow read, write: if request.auth != null
-        && code.size() >= 20
-        && group in ['data', 'log'];
+      allow read, write: if signedIn() && code.size() >= 20 && group in ['data', 'log']
+        && (isR4() || !passwordSet());
+    }
+    // The R4 password (stored only as a hash, nobody can read it back)
+    match /auth/cfg {
+      allow create: if signedIn() && !passwordSet();
+      allow update: if isR4();
+    }
+    // A device becomes an R4 device by sending the matching hash
+    match /admins/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.h == get(/databases/$(database)/documents/auth/cfg).data.h;
+    }
+    // The member view: anyone with the member link can read, only R4 devices can write
+    match /views/{vc} {
+      allow read: if signedIn() && vc.size() >= 12;
+      allow write: if isR4();
     }
   }
 }
 ```
 
-These rules let someone read or write your alliance's data only if they have its private code, which is inside the R4 link. Nobody can list or browse other data.
+The R4 data needs the private code (inside the R4 link) and, once you set an R4 password, a device that entered the password. Members only get the member link, which can read the published lineups and nothing else. Nobody can list or browse other data. **Set the R4 password right after you publish these rules** (see "R4 password and member link" below).
 
 ## 5. Put the site on GitHub Pages (free)
 1. Go to **github.com**, sign in or create an account, and click **New repository**. Name it `storm-roster`, set it to **Public**, and click **Create repository**.
@@ -79,3 +99,9 @@ If the link ever leaks, do this:
 ## Free limits
 - **Firebase (Spark plan):** 50,000 reads and 20,000 writes a day, far more than one alliance uses.
 - **Gemini free tier:** a limited number of requests per minute. If you hit it, wait a minute, or upload fewer screenshots at a time.
+
+
+## R4 password and member link
+In the site, open **Alliance settings** (step 06):
+1. **R4 password:** press **Generate** (or type your own, 8+ characters), press **Set password**, and write it down. New devices that open the R4 link must enter it once. Devices that are already open stay open. If you forget it, set a new one from any open R4 device.
+2. **Member link:** press **Turn on member link**, then **Copy**. Send that link to your members. They see the saved Team A and Team B lineups and who sits out, with a name search and English or Arabic. No power, no scores, and they cannot change anything. The page updates each time an R4 presses **Save roster** (or **Publish now**). **New link** stops the old one.
