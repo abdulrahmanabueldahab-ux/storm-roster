@@ -1027,6 +1027,7 @@ const I18N = (function () {
     'Oldest on the left': 'الأقدم على اليسار', '#': '#', 'Name': 'الاسم', '1st team power': 'قوة الفريق الأول', 'Last event': 'الحدث السابق', 'Waited': 'الانتظار',
     'Events in a row without a main slot': 'عدد الأحداث المتتالية دون مقعد أساسي', 'Recent': 'الأخيرة', 'Officer': 'الضابط', 'This event': 'هذا الحدث', 'Why': 'السبب',
     'A Main': 'A أساسي', 'A Sub': 'A احتياطي', 'B Main': 'B أساسي', 'B Sub': 'B احتياطي', '—': '—',
+    'Plays': 'يلعب', 'Pick by rotation order': 'اختيار حسب ترتيب الدوران',
     'Move: Team A main': 'نقل: الفريق A أساسي', 'Move: Team A sub': 'نقل: الفريق A احتياطي', 'Move: Team B main': 'نقل: الفريق B أساسي', 'Move: Team B sub': 'نقل: الفريق B احتياطي', 'Move: sit out': 'نقل: خارج المعركة',
     'Moved': 'منقول', 'Placed here by an R4': 'وضعه أحد قادة R4 هنا', 'Save power': 'حفظ القوة', 'Move to': 'نقل إلى', 'Remove from alliance': 'إزالة من التحالف', 'Close': 'إغلاق',
     'Team A main': 'الفريق A أساسي', 'Team A sub': 'الفريق A احتياطي', 'Team B main': 'الفريق B أساسي', 'Team B sub': 'الفريق B احتياطي', 'Sit out': 'خارج المعركة', 'Back to auto': 'رجوع إلى تلقائي', 'Power': 'القوة',
@@ -1163,6 +1164,10 @@ const PAT = [
     [/^Removed (.+) from the member list$/, m => 'أزال ' + m[1] + ' من قائمة الأعضاء'],
     [/^(\d+) player\(s\) placed by an R4 did not fit \(that slot is full or the team is off\) and went into the normal rotation\.$/, m => m[1] + ' لاعب وضعهم أحد قادة R4 لم يتّسع لهم المكان (المكان ممتلئ أو الفريق متوقف) وانتقلوا إلى الدور العادي.'],
     [/^(\d+) player\(s\) locked to Team A were moved to Team B because Team A is off\.$/, m => 'تم نقل ' + m[1] + ' لاعب مثبّتين في الفريق A إلى الفريق B لأن الفريق A متوقف.'],
+    [/^Choose who plays: (\d+) of (\d+) chosen$/, m => 'اختر من يلعب: تم اختيار ' + m[1] + ' من ' + m[2]],
+    [/^Only (\d+) can play \(20 main, 10 subs\)\. The rotation picked the first ones for you\. Players you untick stay registered but sit out this time and go first next time\.$/, m => 'يمكن فقط ل' + m[1] + ' لاعبًا اللعب (20 أساسي و10 احتياط). اختار الدوران الأوائل لك. اللاعبون الذين تُلغي تحديدهم يبقون مسجّلين لكنهم يجلسون خارج المعركة هذه المرة ويكونون الأوائل في المرة القادمة.'],
+    [/^More than (\d+) ticked: the rotation will still drop the extra players\.$/, m => 'تم تحديد أكثر من ' + m[1] + ': سيستبعد الدوران اللاعبين الزائدين.'],
+    [/^Plays: (.+)$/, m => 'يلعب: ' + m[1]],
     [/^Locked (.+) in Team ([AB])$/, m => 'ثبّت ' + m[1] + ' في الفريق ' + m[2]],
     [/^Set (.+) back to auto$/, m => 'أعاد ' + m[1] + ' إلى تلقائي'],
     [/^Set (.+)'s last event to (.+)$/, m => 'غيّر الحدث السابق لـ ' + m[1] + ' إلى ' + (trCore(m[2]) || m[2])],
@@ -1177,7 +1182,7 @@ const PAT = [
     [/^· Top$/, () => '· الأعلى'],
     [/^Replace the sign-up list for (Team [AB]) for the (.+) battle: the (\d+) members not in these screenshots are not registered for it\. Leave unticked to add these players to the list you already have\.$/, m => 'استبدال قائمة تسجيل ' + (m[1] === 'Team A' ? 'الفريق A' : 'الفريق B') + ' لمعركة ' + date(m[2]) + ': ' + pl(m[3], 'member') + ' غير موجودين في هذه اللقطات غير مسجّلين فيه. اتركه دون تحديد لإضافة هؤلاء اللاعبين إلى القائمة الموجودة لديك.'],
     [/^Sign-ups for (.+?) · Team A: (.+?) · Team B: (.+)$/, m => 'التسجيلات لـ ' + date(m[1]) + ' · الفريق A: ' + suPart(m[2]) + ' · الفريق B: ' + suPart(m[3])],
-    [/^Set the (Team [AB]) sign-ups for the (.+) battle: (\d+) signed up, (\d+) not signed up \(from (.+)\)$/, m => 'حدّد تسجيلات ' + (m[1] === 'Team A' ? 'الفريق A' : 'الفريق B') + ' لمعركة ' + date(m[2]) + ': ' + m[3] + ' مسجّل، ' + m[4] + ' غير مسجّل (من ' + src(m[5]) + ')'],
+    [/^Set the (Team [AB]) sign-ups for the (.+) battle: (\d+) signed up, (\d+) not signed up \(from (.+?)\)(?:, (\d+) chosen to sit out)?$/, m => 'حدّد تسجيلات ' + (m[1] === 'Team A' ? 'الفريق A' : 'الفريق B') + ' لمعركة ' + date(m[2]) + ': ' + m[3] + ' مسجّل، ' + m[4] + ' غير مسجّل (من ' + src(m[5]) + ')' + (m[6] ? '، ' + m[6] + ' تم اختيارهم للجلوس خارج المعركة' : '')],
     [/^Cleared the sign-up list for the (.+) battle$/, m => 'مسح قائمة التسجيل لمعركة ' + date(m[1])],
     [/^(\d+) players? (?:was|were) already in the other team's list and moved to (Team [AB])$/, m => pl(m[1], 'player') + ' كانوا في قائمة الفريق الآخر وتم نقلهم إلى ' + (m[2] === 'Team A' ? 'الفريق A' : 'الفريق B')],
     [/^Marked (.+) as signed up$/, m => 'حدّد ' + m[1] + ' كمسجّل'],
@@ -1958,13 +1963,15 @@ async function applyReview() {
     const w = effectiveWork(evId);
     const bit = R.kind === 'signupsA' ? 1 : 2, team = R.kind === 'signupsA' ? 'Team A' : 'Team B';
     // a player registers for Team A or Team B, never both: the newest upload wins
-    const reg = {}; let nIn = 0, moved = 0; const other = 3 - bit;
+    const reg = {}; let nIn = 0, moved = 0, unPicked = 0; const other = 3 - bit;
     members.forEach(m => {
       const cur = (w.reg && w.reg[m.hk] | 0) & (w.regOn | 0);
       if (found.has(m.key)) { if (cur & other) moved++; reg[m.hk] = bit; nIn++; } else if (R.replaceSu) reg[m.hk] = cur & ~bit;
     });
+    const ovPatch = {};
+    if (needsPick(R)) members.forEach(m => { const row = found.get(m.key); if (!row) return; const cur = effectiveWork(evId).ov[m.hk] || ''; if (row.play === false) { ovPatch[m.hk] = 'OUT'; unPicked++; } else if (cur === 'OUT') ovPatch[m.hk] = ''; });
     const nOut = members.filter(m => !found.has(m.key) && (R.replaceSu || !(((w.reg && w.reg[m.hk] | 0) & bit) && (w.regOn & bit)))).length;
-    await patchWork(evId, { reg, regOn: (w.regOn | 0) | bit }, 'Set the ' + team + ' sign-ups for the ' + fmtShortEn(w.date) + ' battle: ' + nIn + ' signed up, ' + nOut + ' not signed up (from ' + what + ')');
+    await patchWork(evId, { reg, ov: ovPatch, regOn: (w.regOn | 0) | bit }, 'Set the ' + team + ' sign-ups for the ' + fmtShortEn(w.date) + ' battle: ' + nIn + ' signed up, ' + nOut + ' not signed up (from ' + what + ')' + (unPicked ? ', ' + unPicked + ' chosen to sit out' : ''));
     if (moved) setTimeout(() => toast(moved + (moved === 1 ? ' player was' : ' players were') + ' already in the other team\'s list and moved to ' + team), 2500);
   } else if (R.kind !== 'members') {
     if (R.battle === 'current') await rollForward(evId);
@@ -2125,12 +2132,32 @@ function renderShots() {
   if (!(state.shots.review && ae && $('review').contains(ae) && /INPUT|SELECT/.test(ae.tagName))) renderReview();
 }
 
+// Sign-up screens with more than 30 names for one team: the R4 chooses who plays (default = what the rotation would pick)
+const PLAY_CAP = 30;
+function liveCount(R) { return R.rows.filter(r => r.target !== '-ignore').length; }
+function needsPick(R) { return isSU(R.kind) && liveCount(R) > PLAY_CAP; }
+function defaultPlay(R) {
+  const bit = R.kind === 'signupsA' ? 1 : 2, T = bit === 1 ? 'A' : 'B';
+  const src = S(); const found = new Set(R.rows.filter(r => r.target !== '-ignore' && r.target !== '+new').map(r => r.target));
+  const ms = membersFor(R.ev, src).map(m => Object.assign({}, m, { ov: '', elig: found.has(m.key) ? bit : 0, signedUp: null }));
+  const r = buildRoster(ms, Object.assign({}, settings(), { teamA: T === 'A', teamB: T === 'B' }));
+  const playing = new Set(); Object.keys(r.assign).forEach(k => { const sl = r.assign[k].slot; if (sl && sl[0] === T && sl !== 'OUT' && sl !== 'X') playing.add(k); });
+  let n = playing.size;
+  R.rows.forEach(row => {
+    if (row.target === '-ignore') { row.play = false; return; }
+    if (row.target === '+new') { row.play = n < PLAY_CAP; if (row.play) n++; return; }
+    row.play = playing.has(row.target);
+  });
+}
+function playCount(R) { return R.rows.filter(r => r.target !== '-ignore' && r.play !== false).length; }
+
 function renderReview() {
   const R = state.shots.review; const box = $('review');
   if (!R) { box.innerHTML = ''; return; }
   const src = S(); const members = (src.example ? [] : src.members).slice().sort((a, b) => a.name.localeCompare(b.name));
   const byKey = new Map(members.map(m => [m.key, m]));
   const fx = reviewEffects(R);
+  const pick = needsPick(R); if (pick && R.pickInit !== true) { defaultPlay(R); R.pickInit = true; }
   const isTeam = R.kind === 'A' || R.kind === 'B';
   const showPower = R.kind === 'members' || (isSU(R.kind) && R.updatePower);
   const showScore = R.kind !== 'members' && !isSU(R.kind);
@@ -2148,9 +2175,14 @@ function renderReview() {
     const powerCell = showPower ? '<td><input type="text" value="' + esc(r.power) + '" data-ri="' + i + '" data-rf="power" aria-label="Power read for ' + esc(r.name) + '">' + (cur && cur.power ? ' <span class="muted" style="font-size:12px">was ' + fmtPower(cur.power) + '</span>' : '') + '</td>' : '';
     const scoreCell = showScore ? '<td><input type="text" value="' + esc(r.score || '') + '" data-ri="' + i + '" data-rf="score" aria-label="Score read for ' + esc(r.name) + '"></td>' : '';
     const roleCell = isTeam ? '<td><select data-ri="' + i + '" data-rf="role" aria-label="Role for ' + esc(r.name) + '"><option value="main"' + (r.role !== 'sub' ? ' selected' : '') + '>Main</option><option value="sub"' + (r.role === 'sub' ? ' selected' : '') + '>Sub</option></select></td>' : '';
-    return '<tr><td>' + badge + '</td><td translate="no">' + esc(r.name) + '</td><td><select data-ri="' + i + '" data-rf="target" aria-label="Member for ' + esc(r.name) + '">' + opts.join('') + '</select></td>' + powerCell + scoreCell + roleCell + '</tr>';
+    const playCell = pick ? '<td><input type="checkbox" data-ri="' + i + '" data-rf="play"' + (r.play !== false && r.target !== '-ignore' ? ' checked' : '') + (r.target === '-ignore' ? ' disabled' : '') + ' aria-label="Plays: ' + esc(r.name) + '"></td>' : '';
+    return '<tr><td>' + badge + '</td>' + playCell + '<td translate="no">' + esc(r.name) + '</td><td><select data-ri="' + i + '" data-rf="target" aria-label="Member for ' + esc(r.name) + '">' + opts.join('') + '</select></td>' + powerCell + scoreCell + roleCell + '</tr>';
   }).join('');
   let optsHtml = '';
+  if (pick) {
+    const pc = playCount(R);
+    optsHtml += '<p style="margin:0;font-size:14px" id="rv-pick"><b>' + esc('Choose who plays: ' + pc + ' of ' + PLAY_CAP + ' chosen') + '</b> <span class="muted">' + esc('Only ' + PLAY_CAP + ' can play (20 main, 10 subs). The rotation picked the first ones for you. Players you untick stay registered but sit out this time and go first next time.') + '</span></p>' + (pc > PLAY_CAP ? '<div class="banner warn"><p>' + esc('More than ' + PLAY_CAP + ' ticked: the rotation will still drop the extra players.') + '</p></div>' : '') + '<button class="btn ghost" type="button" id="rv-pick-reset">Pick by rotation order</button>';
+  }
   if (isSU(R.kind)) {
     const wd = effectiveWork(R.ev).date; const next = wd < todayIso() ? nextDate(wd) : wd;
     optsHtml += '<label class="check"><input type="checkbox" id="rv-su-replace"' + (R.replaceSu ? ' checked' : '') + '><span>' + esc('Replace the sign-up list for ' + (R.kind === 'signupsA' ? 'Team A' : 'Team B') + ' for the ' + fmtDay(next) + ' battle: the ' + fx.missing.length + ' members not in these screenshots are not registered for it. Leave unticked to add these players to the list you already have.') + '</span></label>';
@@ -2172,7 +2204,7 @@ function renderReview() {
     (R.screen ? '<span class="muted" style="font-size:13.5px">Gemini saw: ' + esc(R.screen) + '</span>' : '') +
     '<div class="counts"><span><b>' + R.rows.length + '</b> players read</span><span><b>' + fx.matched + '</b> matched</span>' + (fx.close ? '<span style="color:var(--accent)"><b>' + fx.close + '</b> close matches to check</span>' : '') + '<span><b>' + fx.added + '</b> new</span><span><b>' + fx.ignored + '</b> ignored</span></div>' +
     '<span class="muted" style="font-size:13px">Names can be misread. Check the rows marked Check or New, and pick the right member if needed.</span></div>' +
-    '<div class="table-wrap" style="margin:0;border:0;border-radius:0"><table><thead><tr><th></th><th>Read from screenshot</th><th>Member</th>' + (showPower ? '<th>Power</th>' : '') + (showScore ? '<th>Score</th>' : '') + (isTeam ? '<th>Role</th>' : '') + '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div>' +
+    '<div class="table-wrap" style="margin:0;border:0;border-radius:0"><table><thead><tr><th></th>' + (pick ? '<th>Plays</th>' : '') + '<th>Read from screenshot</th><th>Member</th>' + (showPower ? '<th>Power</th>' : '') + (showScore ? '<th>Score</th>' : '') + (isTeam ? '<th>Role</th>' : '') + '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div>' +
     '<div class="review-opts">' + optsHtml + '</div>' +
     '<div class="review-f"><span class="muted" style="font-size:13px">Applying updates the shared data for every R4.</span><span class="actions"><button class="btn ghost" type="button" id="rv-discard">Discard</button><button class="btn accent" type="button" id="rv-apply">Apply</button></span></div></div>';
   $('rv-apply').onclick = async e => { e.target.disabled = true; await applyReview(); };
@@ -2181,6 +2213,7 @@ function renderReview() {
   const rp = $('rv-replace'); if (rp) rp.onchange = e => { R.replaceTeam = e.target.checked; };
   const sr = $('rv-su-replace'); if (sr) sr.onchange = e => { R.replaceSu = e.target.checked; };
   const sp = $('rv-su-power'); if (sp) sp.onchange = e => { R.updatePower = e.target.checked; renderReview(); };
+  const rpr = $('rv-pick-reset'); if (rpr) rpr.onclick = () => { R.pickInit = false; renderReview(); };
   const rb = $('rv-battle'); if (rb) rb.onchange = e => { R.battle = e.target.value; renderReview(); };
 }
 
@@ -2412,6 +2445,7 @@ $('review').addEventListener('change', e => {
   else if (t.dataset.rf === 'power') r.power = t.value;
   else if (t.dataset.rf === 'score') r.score = t.value;
   else if (t.dataset.rf === 'role') r.role = t.value;
+  else if (t.dataset.rf === 'play') { r.play = t.checked; renderReview(); }
 });
 $('btn-example').onclick = () => {
   if (state.mode === 'db' && remoteHasData()) { toast('Your alliance data is loaded. The example only shows on an empty page.'); return; }
