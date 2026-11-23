@@ -88,7 +88,8 @@ If the link ever leaks, do this:
 
 ## Weekly routine
 1. **Monday:** upload **Member list** screenshots to update 1st team power.
-2. Check the roster and mark anyone away. Click **Copy for alliance mail**, register the teams in game, then click **Save roster**.
+2. Upload the sign-ups, **Sign-ups · Team A** and **Sign-ups · Team B** separately. A player registers for one team only: if someone is in both lists, the newest upload wins. Only registered players are picked for a team, and a team with no list uploaded stays empty (so you can run Team A alone).
+   Then check the roster and mark anyone away. Click **Copy for alliance mail**, register the teams in game, then click **Save roster**.
 3. **Friday, after the battle:** upload **Battle results** screenshots and choose "The battle on Fri …". This marks no-shows and starts next week's roster.
 
 ## How the rotation works
