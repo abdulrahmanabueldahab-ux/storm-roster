@@ -461,6 +461,14 @@ body.viewer-mode ol.roster li.ed, body.viewer-mode .chip.ed { cursor: default; }
           <p>A + B registers 60 members (40 main, 20 subs). A only or B only registers 30.</p>
         </div>
         <div class="rule">
+          <span class="label" id="stay-label">Keep players in their team</span>
+          <div class="seg small" role="group" aria-labelledby="stay-label">
+            <button type="button" id="stay-on" aria-pressed="true">On</button>
+            <button type="button" id="stay-off" aria-pressed="false">Off</button>
+          </div>
+          <p>A player who played in Team A stays in Team A (main or sub), and the same for Team B. Only players with no team yet are placed by power.</p>
+        </div>
+        <div class="rule">
           <span class="label" id="ns-label">No-show penalty</span>
           <div class="seg small" role="group" aria-labelledby="ns-label">
             <button type="button" id="ns-on" aria-pressed="true">On</button>
@@ -738,7 +746,7 @@ function nextGap(m, slot) {
  * opts: {core, split:'tiered'|'balanced', teamB:boolean, noShowPenalty:boolean}
  */
 function buildRoster(members, opts) {
-  const o = Object.assign({ core: 0, split: 'tiered', teamA: true, teamB: true, noShowPenalty: true }, opts || {});
+  const o = Object.assign({ core: 0, split: 'tiered', teamA: true, teamB: true, stay: true, noShowPenalty: true }, opts || {});
   const cap = { AM: o.teamA === false ? 0 : CAP.AM, AS: o.teamA === false ? 0 : CAP.AS, BM: o.teamB ? CAP.BM : 0, BS: o.teamB ? CAP.BS : 0 };
   const teams = { AM: [], AS: [], BM: [], BS: [] };
   const out = [];
@@ -756,7 +764,12 @@ function buildRoster(members, opts) {
   };
 
   // Registration per team: elig 1 = Team A only, 2 = Team B only, 3 or unset = either, 0 = not registered
-  const bits = m => (m.elig == null ? 3 : m.elig & 3);
+  const bits = m => {
+    const b = m.elig == null ? 3 : m.elig & 3;
+    // Keep players in the team they played in (sign-ups for one team still win)
+    if (o.stay !== false && b === 3) { if (m.home === 'A') return 1; if (m.home === 'B') return 2; }
+    return b;
+  };
   const canA = m => (bits(m) & 1) !== 0, canB = m => (bits(m) & 2) !== 0;
   const avail = [];
   // Away, or did not sign up for this battle: not picked, keeps their place in line
@@ -964,6 +977,7 @@ const I18N = (function () {
     'Both teams get about the same total power.': 'يحصل الفريقان على مجموع قوة متقارب.',
     'Teams': 'الفرق', 'A + B': 'A + B', 'A only': 'A فقط', 'B only': 'B فقط',
     'A + B registers 60 members (40 main, 20 subs). A only or B only registers 30.': 'A + B يسجّل 60 عضوًا (40 أساسي و20 احتياط). A فقط أو B فقط يسجّل 30.',
+    'Keep players in their team': 'إبقاء اللاعبين في فريقهم', 'A player who played in Team A stays in Team A (main or sub), and the same for Team B. Only players with no team yet are placed by power.': 'اللاعب الذي لعب في الفريق A يبقى في الفريق A (أساسي أو احتياطي)، وكذلك الفريق B. اللاعبون الذين ليس لهم فريق بعد يُوزَّعون حسب القوة.',
     'No-show penalty': 'عقوبة الغياب', 'On': 'تشغيل', 'Off': 'إيقاف',
     'Members marked No-show last time go to the back of the line for one event.': 'الأعضاء المسجلون كغائبين في المرة السابقة ينتقلون إلى آخر الدور لحدث واحد.',
     'Members who have waited the most events without a main slot go first.': 'من انتظر أكثر عدد من الأحداث دون مقعد أساسي يشارك أولًا.',
@@ -1274,7 +1288,7 @@ const KINDS = {
 };
 const STATUS_OPTS = [['', '—'], ['AM', 'A Main'], ['AS', 'A Sub'], ['BM', 'B Main'], ['BS', 'B Sub'], ['OUT', 'Out'], ['NS', 'No-show']];
 const OV_OPTS = [['', 'Auto'], ['A', 'Lock Team A'], ['B', 'Lock Team B'], ['X', 'Away / unavailable'], ['AM', 'Move: Team A main'], ['AS', 'Move: Team A sub'], ['BM', 'Move: Team B main'], ['BS', 'Move: Team B sub'], ['OUT', 'Move: sit out']];
-const DEFAULT_SETTINGS = { core: 0, split: 'tiered', teamA: true, teamB: true, noShowPenalty: true };
+const DEFAULT_SETTINGS = { core: 0, split: 'tiered', teamA: true, teamB: true, stay: true, noShowPenalty: true };
 const LS_KEY = 'storm-rotation-v2';
 const HISTORY_CAP = 16;
 
@@ -1369,10 +1383,17 @@ function mergeWork(base, patch) {
   const n = { date: patch.date || base.date, last: Object.assign({}, base.last, patch.last), gap: Object.assign({}, base.gap, patch.gap), ov: Object.assign({}, base.ov, patch.ov), score: Object.assign({}, base.score, patch.score), reg: Object.assign({}, base.reg, patch.reg), regOn: patch.regOn !== undefined ? (patch.regOn | 0) : (base.regOn | 0), settings: Object.assign({}, DEFAULT_SETTINGS, base.settings, patch.settings) };
   return n;
 }
+function homeTeam(m, last, hist) {
+  if (last && /^[AB][MS]$/.test(last)) return last[0];
+  for (const h of hist) { const r = h.rowsByKey && h.rowsByKey[m.key]; if (r && /^[AB][MS]$/.test(r.s)) return r.s[0]; }
+  return '';
+}
 function membersFor(evId, src) {
   src = src || S(); const w = effectiveWork(evId, src);
+  const hist = (src.saved[evId] || []).filter(h => h.date < w.date);
   return src.members.map(m => ({
     key: m.key, hk: m.hk, name: m.name, power: m.power,
+    home: homeTeam(m, w.last[m.hk] || '', hist),
     last: w.last[m.hk] || '',
     gap: (m.hk in w.gap && w.gap[m.hk] !== null && w.gap[m.hk] !== '') ? +w.gap[m.hk] : null,
     ov: w.ov[m.hk] || '',
@@ -2022,6 +2043,7 @@ function render() {
   $('split-help').textContent = s.split === 'tiered' ? 'Team A gets the highest-power players of this week. Team B gets the rest.' : 'Both teams get about the same total power.';
   const tA = s.teamA !== false, tB = s.teamB !== false;
   $('teams-ab').setAttribute('aria-pressed', String(tA && tB)); $('teams-a').setAttribute('aria-pressed', String(tA && !tB)); $('teams-b').setAttribute('aria-pressed', String(!tA && tB));
+  $('stay-on').setAttribute('aria-pressed', String(s.stay !== false)); $('stay-off').setAttribute('aria-pressed', String(s.stay === false));
   $('ns-on').setAttribute('aria-pressed', String(s.noShowPenalty)); $('ns-off').setAttribute('aria-pressed', String(!s.noShowPenalty));
   document.querySelectorAll('.rules button, .rules input').forEach(el => { el.disabled = !state.canWrite; });
   $('btn-save').classList.toggle('hidden', !state.canWrite);
@@ -2354,6 +2376,7 @@ function setS(k, v) {
   render();
   clearTimeout(settingsTimer);
   settingsTimer = setTimeout(() => { const p = pendingSettings; pendingSettings = {}; patchWork(evId, { settings: p }); }, 700);
+$('stay-on').onclick = () => setS('stay', true); $('stay-off').onclick = () => setS('stay', false);
 }
 const clampCore = v => Math.max(0, Math.min(20, Math.round(+v || 0)));
 $('core-minus').onclick = () => setS('core', clampCore(settings().core - 1));
