@@ -1678,21 +1678,37 @@ function snapOf(h) {
   return { date: h.date, savedAt: h.savedAt || '', AM: by('AM'), AS: by('AS'), BM: by('BM'), BS: by('BS'), OUT: by('OUT') };
 }
 // Everything members may see: saved lineups (current and past) and the member list with power. Never battle scores.
-async function publishViews(quiet) {
-  const vc = viewCode(); if (!vc || state.mode !== 'db' || !fsDb) return false;
+function buildViewDoc() {
   const R = state.remote;
-  // the battle that was already played (uploaded as "last event") counts as history too, even if no roster was saved for it
+  // what members see = exactly what the R4 sees: the live roster for the battle date, plus saved and played rosters as history
+  const live = k => { const w = R.work[k]; if (!w || !R.members.length) return null; try { const { rows } = rosterRows(k, R); return { date: w.date, savedAt: w.updatedAt || '', rows }; } catch (e) { return null; } };
   const withLast = k => {
-    const list = R.saved[k].map(snapOf); const w = R.work[k]; if (!w || !w.last) return list;
+    const lv = live(k);
+    const list = R.saved[k].filter(h => !lv || h.date !== lv.date).map(snapOf); const w = R.work[k];
+    if (lv) list.push(snapOf(lv));
+    if (!w || !w.last) return list.sort((x, y) => y.date.localeCompare(x.date));
     const rows = []; R.members.forEach(m => { const sl = w.last[m.hk]; if (sl === 'AM' || sl === 'AS' || sl === 'BM' || sl === 'BS') rows.push({ n: m.name, p: m.power, s: sl }); });
-    if (!rows.length) return list;
+    if (!rows.length) return list.sort((x, y) => y.date.localeCompare(x.date));
     const d = new Date(w.date + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - 7); const date = d.toISOString().slice(0, 10);
     if (!list.some(x => x.date === date)) list.push(snapOf({ date, savedAt: w.updatedAt || '', rows }));
     return list.sort((x, y) => y.date.localeCompare(x.date));
   };
-  const doc = { updatedAt: nowIso(), h: { ds: withLast('ds'), cs: withLast('cs') }, m: R.members.map(m => ({ n: m.name, p: Math.round(m.power) })) };
-  try { await fsDb.doc('views/' + vc).set(doc); if (!quiet) toast('Published to the member link'); return true; }
+  return { h: { ds: withLast('ds'), cs: withLast('cs') }, m: R.members.map(m => ({ n: m.name, p: Math.round(m.power) })) };
+}
+let lastPub = '', pubTimer = null;
+async function publishViews(quiet) {
+  const vc = viewCode(); if (!vc || state.mode !== 'db' || !fsDb) return false;
+  const body = buildViewDoc(); const doc = Object.assign({ updatedAt: nowIso() }, body);
+  try { await fsDb.doc('views/' + vc).set(doc); lastPub = vc + JSON.stringify(body); if (!quiet) toast('Published to the member link'); return true; }
   catch (e) { toast(e && e.code === 'permission-denied' ? 'Could not publish. Set the R4 password first, and publish the new security rules.' : 'Could not publish. Check your connection.'); return false; }
+}
+// Keep the member link in step with the site: any change an R4 sees is published a moment later
+function autoPublish() {
+  if (state.viewer || state.mode !== 'db' || !state.canWrite || !viewCode() || state.locked) return;
+  clearTimeout(pubTimer);
+  pubTimer = setTimeout(async () => {
+    try { const body = buildViewDoc(); if (viewCode() + JSON.stringify(body) === lastPub) return; await publishViews(true); } catch (e) {}
+  }, 2500);
 }
 function renderMemberSettings() {
   const open = state.access === 'open';
@@ -2038,7 +2054,7 @@ function render() {
   document.querySelectorAll('.app-only').forEach(el => el.classList.toggle('hidden', !showApp));
   $('s6-panel').classList.toggle('hidden', !connected);
   $('btn-example').classList.toggle('hidden', connected);
-  renderGate(); renderSettings(); renderMemberSettings();
+  renderGate(); renderSettings(); renderMemberSettings(); autoPublish();
   const E = EVENTS[state.event]; const w = curWork(); const s = w.settings;
   document.documentElement.setAttribute('data-event', state.event);
   $('ev-ds').setAttribute('aria-pressed', String(state.event === 'ds'));
