@@ -1168,6 +1168,8 @@ const PAT = [
     [/^Only (\d+) can play \(20 main, 10 subs\)\. The rotation picked the first ones for you\. Players you untick stay registered but sit out this time and go first next time\.$/, m => 'يمكن فقط ل' + m[1] + ' لاعبًا اللعب (20 أساسي و10 احتياط). اختار الدوران الأوائل لك. اللاعبون الذين تُلغي تحديدهم يبقون مسجّلين لكنهم يجلسون خارج المعركة هذه المرة ويكونون الأوائل في المرة القادمة.'],
     [/^More than (\d+) ticked: the rotation will still drop the extra players\.$/, m => 'تم تحديد أكثر من ' + m[1] + ': سيستبعد الدوران اللاعبين الزائدين.'],
     [/^Plays: (.+)$/, m => 'يلعب: ' + m[1]],
+    [/^Took (.+) off this battle's list$/, m => 'أزال ' + m[1] + ' من قائمة هذه المعركة'],
+    [/^(.+) is off this battle's list$/, m => m[1] + ' خارج قائمة هذه المعركة'],
     [/^Locked (.+) in Team ([AB])$/, m => 'ثبّت ' + m[1] + ' في الفريق ' + m[2]],
     [/^Set (.+) back to auto$/, m => 'أعاد ' + m[1] + ' إلى تلقائي'],
     [/^Set (.+)'s last event to (.+)$/, m => 'غيّر الحدث السابق لـ ' + m[1] + ' إلى ' + (trCore(m[2]) || m[2])],
@@ -2723,7 +2725,8 @@ function openEditor(hkey) {
     '<label>Power <input id="ed-power" type="text" inputmode="decimal" value="' + (m.power ? esc(fmtPower(m.power)) : '') + '" placeholder="e.g. 45.2M"></label>' +
     '<div class="row"><button class="btn primary" type="button" id="ed-save">Save power</button></div>' +
     '<p class="muted" style="margin:10px 0 4px">Move to</p><div class="row wrap">' + moves + '</div>' +
-    '<div class="row" style="margin-top:12px"><button class="btn danger" type="button" id="ed-del">Remove from alliance</button><button class="btn" type="button" id="ed-close">Close</button></div></div>';
+    '<div class="row" style="margin-top:12px"><button class="btn" type="button" id="ed-off">Take off this battle\'s list</button></div>' +
+    '<div class="row" style="margin-top:8px"><button class="btn danger" type="button" id="ed-del">Remove from alliance</button><button class="btn" type="button" id="ed-close">Close</button></div></div>';
   document.body.appendChild(el);
   el.addEventListener('click', async e => {
     if (e.target === el || e.target.id === 'ed-close') return closeEditor();
@@ -2742,6 +2745,13 @@ function openEditor(hkey) {
       const list = S().members.map(x => x.hk === m.hk ? Object.assign({}, x, { power: p }) : x);
       closeEditor(); toast(m.name + ' is now ' + fmtPower(p));
       return setMembers(list, 'Changed ' + m.name + "'s power to " + fmtPower(p));
+    }
+    if (e.target.id === 'ed-off') {
+      closeEditor(); const w = effectiveWork(state.event);
+      const patch = { ov: { [m.hk]: 'X' } }; if (w.regOn) patch.reg = { [m.hk]: 0 };
+      if (S().example) { const src = S(); src.work[state.event] = mergeWork(w, patch); saveLocal(); render(); return; }
+      toast(m.name + ' is off this battle\'s list');
+      return patchWork(state.event, patch, 'Took ' + m.name + " off this battle's list");
     }
     if (e.target.id === 'ed-del') {
       if (!window.confirm('Remove ' + m.name + ' from the alliance list?')) return;
