@@ -1,0 +1,30 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isR4() { return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+    function passwordSet() { return exists(/databases/$(database)/documents/auth/cfg); }
+
+    // The R4 data. Open to anyone with the private code until an R4 password is set, then R4 devices only.
+    match /alliances/{code}/{group}/{docId} {
+      allow read, write: if signedIn() && code.size() >= 20 && group in ['data', 'log']
+        && (isR4() || !passwordSet());
+    }
+    // The R4 password (stored only as a hash, nobody can read it back)
+    match /auth/cfg {
+      allow create: if signedIn() && !passwordSet();
+      allow update: if isR4();
+    }
+    // A device becomes an R4 device by sending the matching hash
+    match /admins/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.h == get(/databases/$(database)/documents/auth/cfg).data.h;
+    }
+    // The member view: anyone with the member link can read, only R4 devices can write
+    match /views/{vc} {
+      allow read: if signedIn() && vc.size() >= 12;
+      allow write: if isR4();
+    }
+  }
+}

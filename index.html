@@ -274,6 +274,10 @@ body.viewer-mode .app-only, body.viewer-mode #gate, body.viewer-mode #banners, b
 body.viewer-mode .sub { display: none; }
 body.locked #facts, body.locked #sync, body.locked .sub, body.locked .event-ctl > :not([translate="no"]) { display: none !important; }
 #viewer .vsearch { max-width: 360px; }
+#vw-tabs { display: flex; width: 100%; }
+#vw-tabs button { flex: 1; }
+#viewer table { width: 100%; min-width: 0; font-size: 14px; }
+#viewer th, #viewer td { padding: 6px 6px; } #viewer td { white-space: nowrap; } #viewer th { white-space: normal; } #viewer th:first-child, #viewer td:first-child { width: 28px; min-width: 0; padding-inline: 4px; }
 #viewer .vnote { margin: 0; }
 .chip.hit, ol.roster li.hit { outline: 2px solid var(--accent); background: var(--accent-soft, #fff3d6); }
 .vteams { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
@@ -363,6 +367,7 @@ details.alt[open] summary { margin-bottom: 8px; }
     <div class="panel-h"><h2 id="vw1" translate="no">ONE1 <span id="vw-title"></span></h2></div>
     <div class="panel-b bench">
       <div class="status-line" id="vw-status"><span class="pip"></span><span class="txt"></span></div>
+      <div class="seg" id="vw-tabs" role="group" aria-label="Sections"><button type="button" data-vt="lineup" aria-pressed="true">Lineup</button><button type="button" data-vt="history" aria-pressed="false">History</button><button type="button" data-vt="members" aria-pressed="false">Members</button></div>
       <input id="vw-search" class="search vsearch" placeholder="Find your name" aria-label="Find your name">
       <p class="muted small vnote">View only. Lineups are chosen by the R4s.</p>
       <div id="vw-body"></div>
@@ -561,7 +566,7 @@ details.alt[open] summary { margin-bottom: 8px; }
         <p id="view-status" class="small"></p>
         <div class="row-input hidden" id="view-row"><input id="view-link" class="search" readonly aria-label="Member link"><button class="btn primary" type="button" id="btn-copy-view">Copy</button></div>
         <div class="actions"><button class="btn accent" type="button" id="btn-view-on">Turn on member link</button><button class="btn hidden" type="button" id="btn-view-publish">Publish now</button><button class="btn danger hidden" type="button" id="btn-view-new">New link</button></div>
-        <p class="muted small">Members see the saved Team A and Team B lineups and who sits out. No power, no scores, and they cannot change anything. The page updates when you press Save roster.</p>
+        <p class="muted small">Members see the saved lineups, the history of past rosters, and the member list with power. No battle scores, and they cannot change anything. The page updates when you press Save roster.</p>
         <label class="label" for="my-name">Your name</label>
         <input id="my-name" class="search" placeholder="Your name in game" maxlength="40">
         <p class="muted small">Shown in Recent changes so R4s know who did what. Saved on this device only.</p>
@@ -920,7 +925,8 @@ const I18N = (function () {
     'Member link · view only': 'رابط الأعضاء · للعرض فقط', 'Member link': 'رابط الأعضاء',
     'The member link is off.': 'رابط الأعضاء متوقف.', 'The member link is on. Send it to your members.': 'رابط الأعضاء يعمل. أرسله إلى أعضائك.',
     'Turn on member link': 'تشغيل رابط الأعضاء', 'Publish now': 'نشر الآن', 'New link': 'رابط جديد', 'Confirm: the old link stops working': 'تأكيد: سيتوقف الرابط القديم عن العمل',
-    'Members see the saved Team A and Team B lineups and who sits out. No power, no scores, and they cannot change anything. The page updates when you press Save roster.': 'يرى الأعضاء تشكيلتي الفريق A والفريق B المحفوظتين ومن هو خارج المشاركة. بلا قوة وبلا نتائج، ولا يمكنهم تغيير أي شيء. تتحدث الصفحة عند الضغط على «حفظ التشكيلة».',
+    'Members see the saved lineups, the history of past rosters, and the member list with power. No battle scores, and they cannot change anything. The page updates when you press Save roster.': 'يرى الأعضاء التشكيلات المحفوظة وسجل التشكيلات السابقة وقائمة الأعضاء مع القوة. بلا نتائج المعارك، ولا يمكنهم تغيير أي شيء. تتحدث الصفحة عند الضغط على «حفظ التشكيلة».',
+    'Lineup': 'التشكيلة', 'Last lineup': 'آخر تشكيلة', 'Sections': 'الأقسام',
     'Password set. Write it down.': 'تم تعيين كلمة المرور. دوّنها.', 'Published to the member link': 'تم النشر على رابط الأعضاء',
     'Could not publish. Set the R4 password first, and publish the new security rules.': 'تعذر النشر. عيّن كلمة مرور الـR4 أولًا وانشر قواعد الأمان الجديدة.',
     'Could not publish. Check your connection.': 'تعذر النشر. تحقق من الاتصال.',
@@ -1030,6 +1036,8 @@ const I18N = (function () {
     [/^Roster saved for (.+)$/, m => 'تم حفظ التشكيلة لـ ' + date(m[1])],
     [/^(Desert Storm|Canyon Storm) lineup for (.+?) · updated (.+)$/, m => 'تشكيلة ' + ev(m[1]) + ' ليوم ' + (trCore(m[2]) || m[2]) + ' · آخر تحديث ' + (trCore(m[3]) || m[3])],
     [/^No (Desert Storm|Canyon Storm) lineup has been published yet\.$/, m => 'لم تُنشر تشكيلة ' + ev(m[1]) + ' بعد.'],
+    [/^(Desert Storm|Canyon Storm) · (\d+) saved rosters$/, m => ev(m[1]) + ' · ' + m[2] + ' تشكيلة محفوظة'],
+    [/^(\d+) members · (Desert Storm|Canyon Storm) lineup for (.+)$/, m => pl(m[1], 'member') + ' · تشكيلة ' + ev(m[2]) + ' ليوم ' + (trCore(m[3]) || m[3])],
     [/^(Main|Subs|Sitting out) · (\d+)$/, m => (trCore(m[1]) || m[1]) + ' · ' + m[2]],
     [/^→ Team ([AB]) · (Main|Subs)$/, m => '← الفريق ' + m[1] + ' · ' + (trCore(m[2]) || m[2])],
     [/^→ Sitting out$/, () => '← خارج المشاركة'],
@@ -1552,15 +1560,15 @@ async function unlock() {
 // ---- member view: a read-only copy of the saved lineups, no power and no scores ----
 const viewCode = () => (state.remote.config && state.remote.config.viewCode) || '';
 const viewLink = () => (viewCode() ? location.origin + location.pathname + '#v=' + viewCode() : '');
-function viewSnap(k) {
-  const h = (state.remote.saved[k] || [])[0]; if (!h) return null;
+function snapOf(h) {
   const by = sl => h.rows.filter(x => x.s === sl).sort((a, b) => b.p - a.p || a.n.localeCompare(b.n)).map(x => x.n);
   return { date: h.date, savedAt: h.savedAt || '', AM: by('AM'), AS: by('AS'), BM: by('BM'), BS: by('BS'), OUT: by('OUT') };
 }
+// Everything members may see: saved lineups (current and past) and the member list with power. Never battle scores.
 async function publishViews(quiet) {
   const vc = viewCode(); if (!vc || state.mode !== 'db' || !fsDb) return false;
-  const doc = { updatedAt: nowIso() };
-  ['ds', 'cs'].forEach(k => { const v = viewSnap(k); if (v) doc[k] = v; });
+  const R = state.remote;
+  const doc = { updatedAt: nowIso(), h: { ds: R.saved.ds.map(snapOf), cs: R.saved.cs.map(snapOf) }, m: R.members.map(m => ({ n: m.name, p: Math.round(m.power) })) };
   try { await fsDb.doc('views/' + vc).set(doc); if (!quiet) toast('Published to the member link'); return true; }
   catch (e) { toast(e && e.code === 'permission-denied' ? 'Could not publish. Set the R4 password first, and publish the new security rules.' : 'Could not publish. Check your connection.'); return false; }
 }
@@ -2425,18 +2433,8 @@ $('btn-view-new').onclick = e => {
 
 // ================= member view (read-only page) =================
 function readViewFromHash() { const m = /[#&]v=([A-Za-z0-9]{12,})/.exec(location.hash || ''); return m ? m[1] : null; }
-function renderViewer() {
-  const V = state.viewer;
-  document.body.classList.add('viewer-mode');
-  $('viewer').classList.remove('hidden');
-  $('ev-ds').setAttribute('aria-pressed', String(state.event === 'ds')); $('ev-cs').setAttribute('aria-pressed', String(state.event === 'cs'));
-  $('vw-title').textContent = EVENTS[state.event].name;
-  const st = $('vw-status'), body = $('vw-body'); const d = V.data && V.data[state.event];
-  if (V.err) { st.className = 'status-line err'; st.querySelector('.txt').textContent = V.err; body.innerHTML = ''; return; }
-  if (!V.loaded) { st.className = 'status-line'; st.querySelector('.txt').textContent = 'Loading…'; body.innerHTML = ''; return; }
-  if (!V.data) { st.className = 'status-line err'; st.querySelector('.txt').textContent = 'This link is not active. Ask your R4 for the current member link.'; body.innerHTML = ''; return; }
-  if (!d) { st.className = 'status-line'; st.querySelector('.txt').textContent = 'No ' + EVENTS[state.event].name + ' lineup has been published yet.'; body.innerHTML = ''; return; }
-  st.className = 'status-line ok'; st.querySelector('.txt').textContent = EVENTS[state.event].name + ' lineup for ' + fmtDay(d.date) + ' · updated ' + ago(d.savedAt || V.data.updatedAt);
+const SLOT_TXT = { AM: 'Team A · Main', AS: 'Team A · Subs', BM: 'Team B · Main', BS: 'Team B · Subs', OUT: 'Sitting out' };
+function lineupHtml(d, V) {
   const q = (V.q || '').trim().toLowerCase(); const found = [];
   const hit = (n, label) => { const on = !!q && n.toLowerCase().includes(q); if (on) found.push([n, label]); return on; };
   const list = (title, arr, label) => '<h4 class="label" style="margin:8px 0 4px">' + title + ' · ' + arr.length + '</h4><ol>' + (arr.length ? arr.map((n, i) => '<li' + (hit(n, label) ? ' class="hit"' : '') + '><span class="n">' + (i + 1) + '</span><span translate="no">' + esc(n) + '</span></li>').join('') : '<li class="muted">Nobody</li>') + '</ol>';
@@ -2445,10 +2443,45 @@ function renderViewer() {
   html += '</div>';
   if (d.OUT.length) html += '<h4 class="label" style="margin:12px 0 6px">Sitting out · ' + d.OUT.length + '</h4><div class="chips">' + d.OUT.map(n => '<span class="chip' + (hit(n, 'Sitting out') ? ' hit' : '') + '" translate="no">' + esc(n) + '</span>').join('') + '</div>';
   if (q) html = '<p class="vnote"><b>' + (found.length ? found.map(f => '<span translate="no">' + esc(f[0]) + '</span> → ' + f[1]).join('<br>') : 'No player with that name in this lineup.') + '</b></p>' + html;
-  body.innerHTML = html;
+  return html;
+}
+function renderViewer() {
+  const V = state.viewer; const ev = state.event;
+  document.body.classList.add('viewer-mode');
+  $('viewer').classList.remove('hidden');
+  $('ev-ds').setAttribute('aria-pressed', String(ev === 'ds')); $('ev-cs').setAttribute('aria-pressed', String(ev === 'cs'));
+  document.querySelectorAll('#vw-tabs button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.vt === V.tab)));
+  $('vw-title').textContent = EVENTS[ev].name;
+  const st = $('vw-status'), body = $('vw-body');
+  const fail = (cls, t) => { st.className = 'status-line ' + cls; st.querySelector('.txt').textContent = t; body.innerHTML = ''; };
+  if (V.err) return fail('err', V.err);
+  if (!V.loaded) return fail('', 'Loading…');
+  if (!V.data) return fail('err', 'This link is not active. Ask your R4 for the current member link.');
+  const hist = (V.data.h && V.data.h[ev]) || []; const d = hist[0];
+  if (V.tab === 'members') {
+    const q = (V.q || '').trim().toLowerCase();
+    const slotOf = {}; if (d) Object.keys(SLOT_TXT).forEach(k => (d[k] || []).forEach(n => { slotOf[n] = k; }));
+    const ms = (V.data.m || []).slice().sort((a, b) => b.p - a.p || a.n.localeCompare(b.n));
+    st.className = 'status-line ok'; st.querySelector('.txt').textContent = ms.length + ' members' + (d ? ' · ' + EVENTS[ev].name + ' lineup for ' + fmtDay(d.date) : '');
+    const rows = ms.map((m, i) => ({ m, i })).filter(x => !q || x.m.n.toLowerCase().includes(q)).map(x => '<tr><td class="r num muted">' + (x.i + 1) + '</td><td translate="no">' + esc(x.m.n) + '</td><td class="r num">' + fmtPower(x.m.p) + '</td><td>' + (slotOf[x.m.n] ? SLOT_TXT[slotOf[x.m.n]] : '—') + '</td></tr>').join('');
+    body.innerHTML = '<div style="overflow-x:auto"><table><thead><tr><th class="r">#</th><th>Name</th><th class="r">1st team power</th><th>Last lineup</th></tr></thead><tbody>' + (rows || '<tr><td colspan="4" class="muted">No members match.</td></tr>') + '</tbody></table></div>';
+    return;
+  }
+  if (!d) return fail('', 'No ' + EVENTS[ev].name + ' lineup has been published yet.');
+  if (V.tab === 'history') {
+    if (!hist.some(x => x.date === V.hd)) V.hd = d.date;
+    const cur = hist.find(x => x.date === V.hd);
+    st.className = 'status-line ok'; st.querySelector('.txt').textContent = EVENTS[ev].name + ' · ' + hist.length + ' saved rosters';
+    body.innerHTML = '<div class="chips" style="margin-bottom:10px">' + hist.map(x => '<button type="button" class="btn' + (x.date === V.hd ? ' primary' : '') + '" data-hd="' + x.date + '" style="min-height:0;padding:4px 10px">' + fmtShort(x.date) + '</button>').join('') + '</div><h3 style="margin:0 0 6px">' + fmtDay(cur.date) + '</h3>' + lineupHtml(cur, V);
+    return;
+  }
+  st.className = 'status-line ok'; st.querySelector('.txt').textContent = EVENTS[ev].name + ' lineup for ' + fmtDay(d.date) + ' · updated ' + ago(d.savedAt || V.data.updatedAt);
+  body.innerHTML = lineupHtml(d, V);
 }
 async function startViewer(vc) {
-  state.viewer = { vc, data: null, loaded: false, err: '', q: '' };
+  state.viewer = { vc, data: null, loaded: false, err: '', q: '', tab: 'lineup', hd: '' };
+  document.querySelectorAll('#vw-tabs button').forEach(b => { b.onclick = () => { state.viewer.tab = b.dataset.vt; render(); }; });
+  $('vw-body').addEventListener('click', e => { const t = e.target.closest('[data-hd]'); if (t) { state.viewer.hd = t.dataset.hd; render(); } });
   render();
   $('vw-search').addEventListener('input', e => { state.viewer.q = e.target.value; render(); });
   try {
